@@ -23,9 +23,9 @@ from feature_generation import generate_features
 random.seed(2023)
 
 # openai settings
-budget_org = 'org-IVogYSNZgs6F06KgvMk2UTnW'
+budget_org = ''
 openai.organization = budget_org
-openai.api_key = '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'
+openai.api_key = ''
 
 model_list = ['gpt35', 'gpt4', 'llama2-7b', 'llama2-70b', 'led']
 # maximum trials for model to get correct number of answers
