@@ -84,6 +84,10 @@ class DataTrainingArguments:
         default="intervention_timing",
         metadata={"help": "selecting the dialogue subtasks."},
     )
+    dialogue_context_length: int = field(
+        default=-1,
+        metadata={"help": "the number of the utterances to be included as the context"},
+    )
     speakers_info: bool = field(
         default=False,
         metadata={
@@ -618,6 +622,11 @@ def main():
             # input_len = len(tokenizer.tokenize(input + "Dialogue: \n" + dialogue_history))
             exceed_maxlen = len(tokenizer.tokenize(input + "Dialogue: \n" + dialogue_history)) > max_seq_length
             utterances = dialogue_history.split("\n")
+
+            # Control the utternace length
+            if data_args.dialogue_context_length != -1 and data_args.dialogue_context_length <  len(utterances):
+                utterances = utterances[-data_args.dialogue_context_length:]
+
             selected_utterances = utterances
             skip_utterance = 0
             while(exceed_maxlen):
