@@ -3,6 +3,7 @@
 #SBATCH --time=4:00:00
 #SBATCH --gres=gpu:1
 #SBATCH --mem-per-cpu=48G
+#SBATCH --qos gpgpudeeplearn
 #SBATCH --mail-user=mingbinc@student.unimelb.edu.au
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-type=BEGIN
