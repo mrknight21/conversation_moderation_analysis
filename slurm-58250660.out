@@ -1,0 +1,38 @@
+Traceback (most recent call last):
+  File "/data/gpfs/projects/punim0478/bryan/deliberative_dialogue_moderation_agent/intervention_timing_classification.py", line 52, in <module>
+    check_min_version("4.39.0.dev0")
+  File "/data/projects/punim0478/bryan/anaconda3/envs/gpu_env/lib/python3.12/site-packages/transformers/utils/__init__.py", line 247, in check_min_version
+    raise ImportError(
+ImportError: This example requires a source install from HuggingFace Transformers (see `https://huggingface.co/docs/transformers/installation#install-from-source`), but the version found is 4.38.2.
+Check out https://github.com/huggingface/transformers/tree/main/examples#important-note for the examples corresponding to other versions of HuggingFace Transformers.
+Job ID           : 58250660
+Cluster          : spartan
+User/Project     : mingbin/punim0478
+Nodes            : 1
+Wall-clock time  : 00:00:31 / 04:00:00
+
+Displaying overall resources usage from 2024-04-11 18:30:31 to 2024-04-11 18:31:02:
+
+NODE            CPU#        TOT%   ( USR   / SYS   / WIO   / IDLE  ) 
+
+spartan-gpgpu128 : 
+                CPU# 1    : -2.0   (  -1.0 /  -1.0 /  -1.0 /  -1.0 ) 
+
+                GPU# 1    : -1.0  
+
+
+Allocated CPUs            : 1    
+  CPUs with usage <25%    : 1    
+  CPUs with usage <50%    : 0    
+  CPUs with usage >50%    : 0    
+
+
+Allocated GPUs            : 1    
+  GPUs with usage <25%    : 1    
+  GPUs with usage <50%    : 0    
+  GPUs with usage >50%    : 0    
+
+Memory used (RAM)         : 0.0%  [2MB of 25770MB]
+
+--------------------------------------------
+
