@@ -18,17 +18,6 @@ from attributes_prompts import dialogue_acts
 
 os.environ["WANDB_DISABLED"] = "true"
 
-
-max_input_length = 8192
-max_output_length = 512
-batch_size = 2
-
-role_dict = {
-        "mod": 0,
-        "for": 1,
-        "against": 2
-    }
-
 def parse_args():
     parser = argparse.ArgumentParser(description="QA perturbation experiment")
 
@@ -47,21 +36,6 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-def pre_process_dataset(dataset, tokenizer):
-
-    processed_dataset = []
-    for i, r in dataset.sample(frac = 1).iterrows():
-        input = "Title: " + r.title + "." + "\n"
-        input += r.speakers + "." + "\n"
-        input += r.dialogue_history
-
-        output = r.ans_speaker + f"<{r.ans_role}>:" +r.ans_text
-        role_label = role_dict[r.ans_role]
-        moderator_intervene_label = int(r.ans_role == "mod")
-
-        processed_dataset.append({"input":input, "output_text": output, "output_role": role_label, "output_moderation": moderator_intervene_label})
-    df = pd.DataFrame(processed_dataset)
-    return df
 def generate_input_sequence(sample):
     input_string = f"Topic: {sample['topic']} \n"
     input_string += f"Speakers: {sample['speakers']} \n\n"
@@ -81,8 +55,6 @@ def generate_output_sequence(sample):
     output_string += f"dialogue act: {sample['dialogue act']} \n"
     output_string += f"target speaker: {sample['target speaker']} \n"
     return output_string
-
-
 
 
 def load_json_data(path, split = "train", source='gpt'):
@@ -135,7 +107,7 @@ def main():
     # max encoder length is 8192 for PubMed
     encoder_max_length = 4000
     decoder_max_length = 364
-    batch_size = 2
+    batch_size = 8
 
 
     def process_data_to_model_inputs(batch):
