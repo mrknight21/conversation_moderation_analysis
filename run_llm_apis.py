@@ -33,11 +33,8 @@ INPUT_FOLDER = f"./data/{mode}_data"
 OUTPUT_FOLDER = "./data/gpt_annotated_data"
 EVA_FOLDER = "./data/evaluation_scores"
 
-# openai settings
-# budget_org = 'org-IVogYSNZgs6F06KgvMk2UTnW'
-# openai.organization = budget_org
-# openai.api_key = 'sk-proj-ExP2VrJI9eiCgdrpJPqyT3BlbkFJzQxSKdlUslTBBizefj0C'
-client = OpenAI(api_key='sk-proj-ExP2VrJI9eiCgdrpJPqyT3BlbkFJzQxSKdlUslTBBizefj0C', organization='org-IVogYSNZgs6F06KgvMk2UTnW')
+
+client = OpenAI(api_key='', organization='')
 
 model_list = ['gpt35', 'gpt4', 'llama2-7b', 'llama2-70b', 'led']
 da_encoder = {"probing": 0, "confronting": 1, "instruction": 2, "interpretation": 3, "supplement": 4,

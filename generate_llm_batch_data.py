@@ -14,11 +14,8 @@ MODEL = "gpt-4o"
 PRIOR_CONTEXT_SIZE = 5
 POST_CONTEXT_SIZE = 2
 
-# openai settings
-# budget_org = 'org-IVogYSNZgs6F06KgvMk2UTnW'
-# openai.organization = budget_org
-# openai.api_key = 'sk-proj-ExP2VrJI9eiCgdrpJPqyT3BlbkFJzQxSKdlUslTBBizefj0C'
-client = OpenAI(api_key='sk-proj-ExP2VrJI9eiCgdrpJPqyT3BlbkFJzQxSKdlUslTBBizefj0C', organization='org-IVogYSNZgs6F06KgvMk2UTnW')
+
+client = OpenAI(api_key='', organization='')
 
 def process_episode(episode, model_name):
     meta = get_episode_meta(episode)
