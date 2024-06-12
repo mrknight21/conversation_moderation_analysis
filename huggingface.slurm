@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --partition=deeplearn
 #SBATCH --time=4:00:00
-#SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:2
 #SBATCH --mem-per-cpu=48G
 #SBATCH --qos gpgpudeeplearn
 #SBATCH --mail-user=mingbinc@student.unimelb.edu.au

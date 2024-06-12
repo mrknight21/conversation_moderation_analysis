@@ -2,15 +2,20 @@ import os
 import pandas as pd
 import torch
 import argparse
+import json
 from tqdm import tqdm
 from datasets import load_dataset, load_metric, Dataset
-from transformers import AutoTokenizer, AutoModelForSequenceClassification, TrainingArguments, Trainer, LongformerForSequenceClassification
-from transformers import DataCollatorWithPadding
+from transformers import (
+    Seq2SeqTrainer,
+    Seq2SeqTrainingArguments,
+    AutoTokenizer,
+    AutoModelForSeq2SeqLM,
+)
+
+from attributes_prompts import dialogue_acts
 
 
-DATA_FOLDER = '.'
-TRAIN_FOLDER = os.path.join(DATA_FOLDER, 'train')
-TEST_FOLDER = os.path.join(DATA_FOLDER, 'test')
+
 os.environ["WANDB_DISABLED"] = "true"
 
 
@@ -57,40 +62,92 @@ def pre_process_dataset(dataset, tokenizer):
         processed_dataset.append({"input":input, "output_text": output, "output_role": role_label, "output_moderation": moderator_intervene_label})
     df = pd.DataFrame(processed_dataset)
     return df
+def generate_input_sequence(sample):
+    input_string = f"Topic: {sample['topic']} \n"
+    input_string += f"Speakers: {sample['speakers']} \n\n"
+    if len(sample["prior context"]) > 0:
+        input_string += f"Prior context: {sample['prior context']} \n\n"
+    if len(sample["post context"]) > 0:
+        input_string += f"Post context: {sample['prior context']} \n\n"
+    input_string += f"Target: {sample['target']}"
+    return input_string
 
+
+def generate_output_sequence(sample):
+    output_string = ""
+    output_string += f"informational motive: {sample['informational motive']} \n"
+    output_string += f"social motive: {sample['social motive']} \n"
+    output_string += f"coordinative motive: {sample['coordinative motive']} \n"
+    output_string += f"dialogue act: {sample['dialogue act']} \n"
+    output_string += f"target speaker: {sample['target speaker']} \n"
+    return output_string
+
+
+
+
+def load_json_data(path, split = "train", source='gpt'):
+    data_set = []
+    with open(path) as f:
+        json_objs = json.load(f)
+        for i in json_objs:
+            sample = {
+                "id": i["id"],
+                "topic": i["topic"],
+                "speakers": ",\n".join(i["speakers"]),
+                "prior context": "".join([f"{s[0]} ({s[1]}): {s[2]} \n" for s in i["context"]["prior_context"]]),
+                "post context": "".join([f"{s[0]} ({s[1]}): {s[2]} \n" for s in i["context"]["post_context"]]),
+                "target": f"{i['target']['speaker']} ({i['target']['role']}): {i['target']['content']} \n"
+            }
+            if split == "train":
+                sample["informational motive"] = "informational motive" in i["answer"]["motives"]
+                sample["social motive"] = "social motive" in i["answer"]["motives"]
+                sample["coordinative motive"] = "coordinative motive" in i["answer"]["motives"]
+                sample["dialogue act"] = int(dialogue_acts[i["answer"]["dialogue act"]])
+                sample["target speaker"] = int(i["answer"]['target speaker(s)'][0])
+            else:
+                if source == "gpt":
+                    sample["informational motive"] = "informational motive" in i["answer"]["gpt"]["motives"]
+                    sample["social motive"] = "social motive" in i["answer"]["gpt"]["motives"]
+                    sample["coordinative motive"] = "coordinative motive" in i["answer"]["gpt"]["motives"]
+                    sample["dialogue act"] = i["answer"]["gpt"]["dialogue act"]
+                    sample["target speaker"] = i["answer"]["gpt"]['target speaker(s)']
+            sample["input_sequence"] = generate_input_sequence(sample)
+            sample["output_sequence"] = generate_output_sequence(sample)
+            data_set.append(sample)
+    return Dataset.from_list(data_set)
 
 def main():
     args = parse_args()
-    model_list = ['allenai/longformer-base-4096', "allenai/led-base-16384"]
+    model_list = ["allenai/led-base-16384", "MingZhong/DialogLED-large-5120"]
 
     # load rouge
     rouge = load_metric("rouge")
 
+    # load data
+    insq_train = load_json_data("./data/insq/agg/train.json")
+    insq_dev = load_json_data("./data/insq/agg/dev.json", split="dev")
+
+
     # load tokenizer
-    tokenizer = AutoTokenizer.from_pretrained('allenai/longformer-base-4096')
-
-    test_data = pre_process_dataset(pd.read_csv("./data/isd_sampled_test.csv"), tokenizer)
-    test_data = Dataset.from_pandas(test_data, split="test")
-    train_sampled_data = pre_process_dataset(pd.read_csv("./data/isd_sampled_test.csv"), tokenizer)
-    train_data = Dataset.from_pandas(train_sampled_data, split="train")
-
+    tokenizer = AutoTokenizer.from_pretrained("MingZhong/DialogLED-large-5120")
 
 
     # max encoder length is 8192 for PubMed
-    encoder_max_length = 1024
-    decoder_max_length = 256
+    encoder_max_length = 4000
+    decoder_max_length = 364
     batch_size = 2
 
-    def process_data_to_model_inputs(batch, task="binary_class"):
+
+    def process_data_to_model_inputs(batch):
         # tokenize the inputs and labels
         inputs = tokenizer(
-            batch["input"],
+            batch["input_sequence"],
             padding="max_length",
             truncation=True,
             max_length=encoder_max_length,
         )
         outputs = tokenizer(
-            batch["output_text"],
+            batch["output_sequence"],
             padding="max_length",
             truncation=True,
             max_length=decoder_max_length,
@@ -106,49 +163,62 @@ def main():
 
         # since above lists are references, the following line changes the 0 index for all samples
         batch["global_attention_mask"][0][0] = 1
+        batch["labels"] = outputs.input_ids
 
-        if task == "generation":
-            batch["labels"] = outputs.input_ids
+        # We have to make sure that the PAD token is ignored
+        batch["labels"] = [
+            [-100 if token == tokenizer.pad_token_id else token for token in labels]
+            for labels in batch["labels"]
+        ]
 
-            # We have to make sure that the PAD token is ignored
-            batch["labels"] = [
-                [-100 if token == tokenizer.pad_token_id else token for token in labels]
-                for labels in batch["labels"]
-            ]
-        elif task == "multi_class":
-            batch["labels"] = batch["output_roles"]
-        elif task == "binary_class":
-            batch["labels"] = batch["output_moderation"]
         return batch
 
-    # map val data
-    test_data = test_data.map(
-        process_data_to_model_inputs,
-        batched=True,
-        batch_size=batch_size,
-        remove_columns=["input", "output_text", "output_role", "output_moderation"]
-    )
 
     # map train data
-    train_data = train_data.map(
+    insq_train = insq_train.map(
         process_data_to_model_inputs,
         batched=True,
         batch_size=batch_size,
-        remove_columns=["input", "output_text", "output_role", "output_moderation"]
+        remove_columns=['id', 'topic', 'speakers', 'prior context', 'post context', 'target', 'informational motive', 'social motive', 'coordinative motive', 'dialogue act', 'target speaker', 'input_sequence', 'output_sequence'],
     )
 
+    # map val data
+    insq_dev = insq_dev.map(
+        process_data_to_model_inputs,
+        batched=True,
+        batch_size=batch_size,
+        remove_columns=['id', 'topic', 'speakers', 'prior context', 'post context', 'target', 'informational motive', 'social motive', 'coordinative motive', 'dialogue act', 'target speaker', 'input_sequence', 'output_sequence'],
+    )
 
     # set Python list to PyTorch tensor
-    test_data.set_format(
+    insq_train.set_format(
         type="torch",
-        columns=["input_ids", "attention_mask", "global_attention_mask", "labels"]
+        columns=["input_ids", "attention_mask", "global_attention_mask", "labels"],
     )
 
     # set Python list to PyTorch tensor
-    train_data.set_format(
+    insq_dev.set_format(
         type="torch",
-        columns=["input_ids", "attention_mask", "global_attention_mask", "labels"]
+        columns=["input_ids", "attention_mask", "global_attention_mask", "labels"],
     )
+
+    # enable fp16 apex training
+    training_args = Seq2SeqTrainingArguments(
+        predict_with_generate=True,
+        evaluation_strategy="steps",
+        per_device_train_batch_size=batch_size,
+        per_device_eval_batch_size=batch_size,
+        fp16=True,
+        fp16_backend="apex",
+        output_dir="./",
+        logging_steps=250,
+        eval_steps=5000,
+        save_steps=1000,
+        warmup_steps=1500,
+        save_total_limit=2,
+        gradient_accumulation_steps=4,
+    )
+
 
     # compute Rouge score during validation
     def compute_metrics(pred):
@@ -169,33 +239,32 @@ def main():
             "rouge2_fmeasure": round(rouge_output.fmeasure, 4),
         }
 
+
     # load model + enable gradient checkpointing & disable cache for checkpointing
-    model = AutoModelForSequenceClassification.from_pretrained('allenai/longformer-base-4096', num_labels = 2).to("mps")
+    led = AutoModelForSeq2SeqLM.from_pretrained("MingZhong/DialogLED-large-5120", gradient_checkpointing=True, use_cache=False)
 
-    data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
+    # set generate hyperparameters
+    led.config.num_beams = 4
+    led.config.max_length = 512
+    led.config.min_length = 100
+    led.config.length_penalty = 2.0
+    led.config.early_stopping = True
+    led.config.no_repeat_ngram_size = 3
 
-    training_args = TrainingArguments(
-        output_dir="./results",
-        learning_rate=2e-5,
-        per_device_train_batch_size=2,
-        per_device_eval_batch_size=2,
-        num_train_epochs=3,
-        weight_decay=0.01,
-        use_mps_device=True
-    )
 
-    trainer = Trainer(
-
-        model=model,
-        args=training_args,
-        train_dataset=train_data,
-        eval_dataset=test_data,
+    # instantiate trainer
+    trainer = Seq2SeqTrainer(
+        model=led,
         tokenizer=tokenizer,
-        data_collator=data_collator,
+        args=training_args,
+        compute_metrics=compute_metrics,
+        train_dataset=insq_train,
+        eval_dataset=insq_dev,
     )
 
     # start training
     trainer.train()
+
 
 
 

@@ -71,7 +71,7 @@ def main():
     # load model + enable gradient checkpointing & disable cache for checkpointing
     model = AutoModelForSequenceClassification.from_pretrained('results/checkpoint-500', num_labels=2).to("mps")
 
-    test_data = pre_process_dataset(pd.read_csv("./data/isd_sampled_test.csv"), tokenizer)
+    test_data = pre_process_dataset(pd.read_csv("data/archived/isd_sampled_test.csv"), tokenizer)
     test_data = Dataset.from_pandas(test_data, split="test")
 
 
