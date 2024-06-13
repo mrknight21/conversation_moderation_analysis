@@ -103,7 +103,7 @@ def main():
     # max encoder length is 8192 for PubMed
     encoder_max_length = 3072
     decoder_max_length = 64
-    batch_size = 2
+    batch_size = 16
 
 
     def process_data_to_model_inputs(batch):
@@ -179,12 +179,12 @@ def main():
         # fp16=True,
         # fp16_backend="apex",
         output_dir="./",
-        logging_steps=250,
-        eval_steps=5000,
-        save_steps=1000,
-        warmup_steps=1500,
+        logging_steps=20,
+        eval_steps=700,
+        save_steps=300,
+        warmup_steps=100,
         save_total_limit=2,
-        gradient_accumulation_steps=4,
+        gradient_accumulation_steps=2,
     )
 
 
