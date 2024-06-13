@@ -1,13 +1,13 @@
 #!/bin/bash
 #SBATCH --partition=deeplearn
-#SBATCH --gres=gpu:A100:4
+#SBATCH --gres=gpu:A100:2
 #SBATCH --time=12:00:00
 #SBATCH --ntasks=1
 #SBATCH --job-name=mingbin.longformer
 #SBATCH --cpus-per-task=16
-#SBATCH -A punim0521
+#SBATCH -A punim0478
 #SBATCH --qos=gpgpudeeplearn
-#SBATCH --constraint=dlg4
+#SBATCH --constraint=dlg5
 #SBATCH --mem=120G
 #SBATCH --mail-user=mingbinc@student.unimelb.edu.au
 #SBATCH --mail-type=FAIL
