@@ -1,18 +1,18 @@
 #!/bin/bash
 #SBATCH --partition=deeplearn
+#SBATCH --gres=gpu:A100:4
 #SBATCH --time=12:00:00
-#SBATCH --gres=gpu:A100:2
+#SBATCH --ntasks=1
 #SBATCH --job-name=mingbin.longformer
-#SBATCH --mem-per-cpu=48G
-#SBATCH --qos gpgpudeeplearn
-#SBATCH --mail-user=mingbinc@student.unimelb.edu.au
-#SBATCH --constraint=dlg5
+#SBATCH --cpus-per-task=16
 #SBATCH -A punim0521
+#SBATCH --qos=gpgpudeeplearn
+#SBATCH --constraint=dlg4
+#SBATCH --mem=120G
+#SBATCH --mail-user=mingbinc@student.unimelb.edu.au
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-type=BEGIN
 #SBATCH --mail-type=END
-
-
 
 source /data/projects/punim0478/bryan/anaconda3/bin/activate gpu_env
 python3 finetune_longformer.py

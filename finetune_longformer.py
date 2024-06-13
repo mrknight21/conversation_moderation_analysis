@@ -14,10 +14,6 @@ from transformers import (
 
 from attributes_prompts import dialogue_acts
 
-
-
-os.environ["WANDB_DISABLED"] = "true"
-
 def parse_args():
     parser = argparse.ArgumentParser(description="QA perturbation experiment")
 
@@ -105,9 +101,9 @@ def main():
 
 
     # max encoder length is 8192 for PubMed
-    encoder_max_length = 4000
-    decoder_max_length = 364
-    batch_size = 8
+    encoder_max_length = 3072
+    decoder_max_length = 64
+    batch_size = 2
 
 
     def process_data_to_model_inputs(batch):
