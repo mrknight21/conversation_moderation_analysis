@@ -207,7 +207,7 @@ def main():
             "rouge2_fmeasure": round(rouge_output.fmeasure, 4),
         }
 
-
+    print("loading model......")
     # load model + enable gradient checkpointing & disable cache for checkpointing
     led = AutoModelForSeq2SeqLM.from_pretrained("MingZhong/DialogLED-large-5120", gradient_checkpointing=True, use_cache=False)
 
@@ -229,6 +229,8 @@ def main():
         train_dataset=insq_train,
         eval_dataset=insq_dev,
     )
+
+    print("Start training......")
 
     # start training
     trainer.train()
