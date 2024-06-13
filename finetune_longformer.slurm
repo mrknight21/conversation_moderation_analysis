@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --partition=deeplearn
-#SBATCH --gres=gpu:A100:2
+#SBATCH --gres=gpu:A100:1
 #SBATCH --time=12:00:00
 #SBATCH --ntasks=1
 #SBATCH --job-name=mingbin.longformer
