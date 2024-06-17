@@ -15,7 +15,7 @@
 #SBATCH --mail-type=END
 
 source /data/projects/punim0478/bryan/anaconda3/bin/activate gpu_env
-python3 finetune_longformer.py
+python3 finetune_longformer.py "$@"
 
 ##DO NOT ADD/EDIT BEYOND THIS LINE##
 ##Job monitor command to list the resource usage
