@@ -249,7 +249,7 @@ def main():
         columns=["input_ids", "attention_mask", "global_attention_mask", "labels"],
     )
 
-    output_path = args.output_dir + corpus + "/" + model + "/"
+    output_path = args.output_dir + corpus + "/" + model.replace("/", "_") + "/"
     if not os.path.isdir(output_path):
         if not os.path.isdir(args.output_dir + corpus + "/" ):
             os.mkdir(args.output_dir + corpus + "/" )
