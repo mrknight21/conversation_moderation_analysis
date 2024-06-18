@@ -15,16 +15,20 @@ from transformers import (
     LEDForSequenceClassification,
     LEDForConditionalGeneration
 )
+import wandb
 
 from attributes_prompts import dialogue_acts
-import wandb
+from meta_info import attributes_info
+
 
 # Disable W&B logging
 wandb.init(mode="disabled")
 
 # Define the allowed choices
 all_attributes = ["dialogue act", "social motive", "informational motive", "coordinative motive", "target speaker"]
-models = ["allenai/longformer-base-4096", "allenai/longformer-large-4096", "allenai/led-base-16384", "MingZhong/DialogLED-large-5120"]
+all_models = ["allenai/longformer-base-4096", "allenai/longformer-large-4096", "allenai/led-base-16384", "MingZhong/DialogLED-large-5120"]
+all_corpus = ['insq', 'roundtable']
+all_tasks = ['classification', 'sequence2sequence', 'multi-tasks']
 
 def parse_args():
     parser = argparse.ArgumentParser(description="QA perturbation experiment")
@@ -37,8 +41,8 @@ def parse_args():
 
     parser.add_argument(
         "--corpus",
-        choices=['insq', 'roundtable'],
-        default='insq',
+        choices=all_corpus,
+        default=all_corpus[0],
         type=str
     )
 
@@ -50,8 +54,8 @@ def parse_args():
 
     parser.add_argument(
         '--method',
-        choices=['classification', 'sequence2sequence'],
-        default='classification',
+        choices=all_tasks,
+        default=all_tasks[0],
         help='Type of task to perform. Options are: classification, sequence2sequence. Default is classification.'
     )
 
@@ -73,8 +77,8 @@ def parse_args():
 
     parser.add_argument(
         '--model',
-        choices=models,
-        default=models[0],
+        choices=all_models,
+        default=all_models[0],
         help='selecting training mode or evaluation model to use.'
     )
 
@@ -98,6 +102,13 @@ def parse_args():
         help='checkpoint string for the mdoel'
     )
 
+    parser.add_argument(
+        '--debug',
+        type=bool,
+        default=False,
+        help='if debug mode on or not'
+    )
+
     args = parser.parse_args()
     return args
 
@@ -110,6 +121,25 @@ def generate_input_sequence(sample):
         input_string += f"Post context: {sample['prior context']} \n\n"
     input_string += f"Target: {sample['target']}"
     return input_string
+
+def test_model_functionality(model, inputs, task="classification", test_batch_size=2):
+
+    data_loader = torch.utils.data.DataLoader(inputs, batch_size=test_batch_size, shuffle=True)
+    for batch in data_loader:
+        with torch.no_grad():
+            outputs = model(**batch)
+
+        if task == "classification":
+            result = torch.argmax(outputs.logit, dim=1)
+            print(result)
+
+        elif task == "multilabel-classification":
+            result = torch.arange(0, outputs.shape[-1])[torch.sigmoid(outputs).squeeze(dim=0) > 0.5]
+            print(result)
+        return True
+
+
+
 
 
 def generate_output_sequence(sample):
@@ -300,14 +330,17 @@ def main():
                 longformer_model = LongformerForSequenceClassification.from_pretrained(args.checkpoint)
         else:
             if "led" in model.lower():
-                longformer_model = LEDForSequenceClassification.from_pretrained(model)
+                longformer_model = LEDForSequenceClassification.from_pretrained(model, num_labels=attributes_info[attributes[0]]["num_labels"])
             else:
-                longformer_model = LongformerForSequenceClassification.from_pretrained(model)
+                longformer_model = LongformerForSequenceClassification.from_pretrained(model, num_labels=attributes_info[attributes[0]]["num_labels"])
 
     if method != "classification":
         compute_metrics = create_rogue_matric(tokenizer)
     else:
         compute_metrics = compute_classification_accuracy
+
+    if args.debug:
+        test_model_functionality(longformer_model, dev_data, compute_metrics)
 
     # instantiate trainer
     trainer = Seq2SeqTrainer(
@@ -325,21 +358,45 @@ def main():
     trainer.train()
 
 def evaluate_longformer(checkpoint):
-    # load rouge
-    rouge = load_metric("rouge")
-    tokenizer = AutoTokenizer.from_pretrained(checkpoint)
-    led = AutoModelForSeq2SeqLM.from_pretrained(checkpoint)
-    # set generate hyperparameters
-    led.config.num_beams = 2
-    led.config.max_length = 144
-    led.config.min_length = 20
-    # led.config.length_penalty = 2.0
-    led.config.early_stopping = True
-    # led.config.no_repeat_ngram_size = 3
+    args = parse_args()
+    data_path = args.data_path
+
+    model = args.model
+    mode = args.mode
+    method = args.method
+    corpus = args.corpus
+    batch_size = args.batch
+    attributes = args.attributes
+
+    tokenizer = AutoTokenizer.from_pretrained(model)
+
+    if method != "classification":
+        if args.checkpoint:
+            longformer_model = AutoModelForSeq2SeqLM.from_pretrained(args.checkpoint)
+        else:
+            longformer_model = AutoModelForSeq2SeqLM.from_pretrained(args.model)
+
+        # set generate hyperparameters
+        longformer_model.config.num_beams = 4
+        longformer_model.config.max_length = 512
+        longformer_model.config.min_length = 100
+        longformer_model.config.length_penalty = 2.0
+        longformer_model.config.early_stopping = True
+        longformer_model.config.no_repeat_ngram_size = 3
+    else:
+        if args.checkpoint:
+            if "led" in model.lower():
+                longformer_model = LEDForSequenceClassification.from_pretrained(args.checkpoint)
+            else:
+                longformer_model = LongformerForSequenceClassification.from_pretrained(args.checkpoint)
+        else:
+            if "led" in model.lower():
+                longformer_model = LEDForSequenceClassification.from_pretrained(model)
+            else:
+                longformer_model = LongformerForSequenceClassification.from_pretrained(model)
 
     insq_dev = load_json_data("./data/insq/agg/dev.json", split="dev")
 
-    # max encoder length is 8192 for PubMed
     encoder_max_length = 3072
     decoder_max_length = 64
     batch_size = 2
@@ -411,31 +468,19 @@ def evaluate_longformer(checkpoint):
         gradient_accumulation_steps=2,
     )
 
-    # compute Rouge score during validation
-    def compute_metrics_rogue(pred):
-        labels_ids = pred.label_ids
-        pred_ids = pred.predictions
+    if method != "classification":
+        compute_metrics = create_rogue_matric(tokenizer)
+    else:
+        compute_metrics = compute_classification_accuracy
 
-        pred_str = tokenizer.batch_decode(pred_ids, skip_special_tokens=True)
-        labels_ids[labels_ids == -100] = tokenizer.pad_token_id
-        label_str = tokenizer.batch_decode(labels_ids, skip_special_tokens=True)
 
-        rouge_output = rouge.compute(
-            predictions=pred_str, references=label_str, rouge_types=["rouge2"]
-        )["rouge2"].mid
-
-        return {
-            "rouge2_precision": round(rouge_output.precision, 4),
-            "rouge2_recall": round(rouge_output.recall, 4),
-            "rouge2_fmeasure": round(rouge_output.fmeasure, 4),
-        }
 
     # instantiate trainer
     trainer = Seq2SeqTrainer(
-        model=led,
+        model=longformer_model,
         tokenizer=tokenizer,
         args=training_args,
-        compute_metrics=compute_metrics_rogue,
+        compute_metrics=compute_metrics,
         # train_dataset=insq_train,
         eval_dataset=insq_dev,
     )
