@@ -140,8 +140,6 @@ def test_model_functionality(model, inputs, task="classification", test_batch_si
 
 
 
-
-
 def generate_output_sequence(sample):
     output_string = ""
     output_string += f"informational motive: {sample['informational motive']} \n"
@@ -395,7 +393,7 @@ def evaluate_longformer(checkpoint):
             else:
                 longformer_model = LongformerForSequenceClassification.from_pretrained(model)
 
-    insq_dev = load_json_data("./data/insq/agg/dev.json", split="dev")
+    insq_dev = load_json_data("../data/insq/agg/dev.json", split="dev")
 
     encoder_max_length = 3072
     decoder_max_length = 64
@@ -459,7 +457,7 @@ def evaluate_longformer(checkpoint):
         per_device_eval_batch_size=batch_size,
         # fp16=True,
         # fp16_backend="apex",
-        output_dir="./",
+        output_dir="../",
         eval_strategy="epoch",
         save_strategy="epoch",
         load_best_model_at_end=True,

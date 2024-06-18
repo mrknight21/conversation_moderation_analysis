@@ -103,7 +103,7 @@ def main():
         per_device_eval_batch_size=batch_size,
         fp16=True,
         fp16_backend="apex",
-        output_dir="./",
+        output_dir="../",
         logging_steps=250,
         eval_steps=5000,
         save_steps=500,
