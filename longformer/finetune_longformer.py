@@ -199,9 +199,14 @@ def finetune_longformer():
     attributes = args.attributes
     target_attributes_info = attributes_info[attributes[0]]
 
+    attribute_string = attributes[0]
+
     if method == "multi-tasks":
         target_attributes_info = {k: info for k, info in attributes_info.items() if k in attributes}
-
+        if len(attributes) == len(all_attributes):
+            attribute_string = "all"
+        else:
+            attribute_string = "_".join([ "".join([w[0] for w in a.split("_")]) for a in attributes])
 
 
     if mode == "train":
@@ -297,7 +302,7 @@ def finetune_longformer():
         columns=tensor_columns,
     )
 
-    output_path = args.output_dir + corpus + "/" + model.replace("/", "_") + "_" +method + "/"
+    output_path = args.output_dir + corpus + "/" + model.replace("/", "_") + "_" +attribute_string + "/"
     if not os.path.isdir(output_path):
         if not os.path.isdir(args.output_dir + corpus + "/" ):
             os.mkdir(args.output_dir + corpus + "/" )
@@ -377,7 +382,7 @@ def finetune_longformer():
         compute_metrics = compute_classification_accuracy
 
     if args.debug:
-        test_model_functionality(longformer_model, dev_data, compute_metrics)
+        test_model_functionality(longformer_model, dev_data, compute_metrics, task=method)
 
     if method == "multi-tasks":
 
