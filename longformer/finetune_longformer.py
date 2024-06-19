@@ -21,7 +21,7 @@ import wandb
 
 from attributes_prompts import dialogue_acts
 from meta_info import attributes_info
-from multitasks_longformer import LongformerForSequenceMultiTasksClassification
+from longformer.multitasks_longformer import LongformerForSequenceMultiTasksClassification
 
 
 # Disable W&B logging
@@ -187,7 +187,7 @@ def load_json_data(path, split = "train", source='gpt', method="classification",
                 break
     return Dataset.from_list(data_set)
 
-def main():
+def finetune_longformer():
     args = parse_args()
     data_path = args.data_path
 
@@ -544,11 +544,4 @@ def evaluate_longformer(checkpoint):
 
 
 
-
-
-
-
-
-if __name__ == "__main__":
-    main()
 
