@@ -1,5 +1,6 @@
 import numpy as np
 import evaluate
+from sklearn.metrics import classification_report
 
 accuracy = evaluate.load("accuracy")
 
@@ -8,6 +9,10 @@ def compute_classification_accuracy(eval_pred):
     predictions = np.argmax(predictions, axis=1)
     return accuracy.compute(predictions=predictions, references=labels)
 
+def compute_classification_eval_report(eval_pred):
+    predictions, labels = eval_pred
+    predictions = np.argmax(predictions, axis=1)
+    return classification_report(labels, predictions, output_dict=True)
 
 def create_rogue_matric(tokenizer):
     # load rouge

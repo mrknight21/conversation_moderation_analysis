@@ -1,18 +1,18 @@
 
 attributes_info = {
-    "dialogue act":{
+    "dialogue_act":{
         "num_labels": 6
     },
-    "informational motive":{
+    "informational_motive":{
         "num_labels": 2
     },
-    "social motive":{
+    "social_motive":{
         "num_labels": 2
     },
-    "coordinative motive":{
+    "coordinative_motive":{
         "num_labels": 2
     },
-    "target speaker":{
+    "target_speaker":{
         "num_labels": 12
     }
 }
