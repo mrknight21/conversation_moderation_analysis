@@ -147,7 +147,7 @@ class LongformerForSequenceMultiTasksClassification(LongformerPreTrainedModel):
         sequence_output = outputs[0]
         batch_size = sequence_output.shape[0]
         all_logits = torch.empty(batch_size, 0).to(sequence_output.device)
-        loss = None
+        loss = torch.tensor(0.0, dtype=torch.float).to(sequence_output.device)
         task_index = 0
         for k, info in self.tasks_info.items():
             clsr = self.classifiers[k]
@@ -167,27 +167,15 @@ class LongformerForSequenceMultiTasksClassification(LongformerPreTrainedModel):
             if self.config.problem_type == "regression":
                 loss_fct = MSELoss()
                 if num_labels == 1:
-                    if loss:
-                        loss += loss_fct(logits.squeeze(), task_labels.squeeze())
-                    else:
-                        loss = loss_fct(logits.squeeze(), task_labels.squeeze())
+                    loss += loss_fct(logits.squeeze(), task_labels.squeeze())
                 else:
-                    if loss:
-                        loss += loss_fct(logits, task_labels)
-                    else:
-                        loss = loss_fct(logits, task_labels)
+                    loss += loss_fct(logits, task_labels)
             elif self.config.problem_type == "single_label_classification":
                 loss_fct = CrossEntropyLoss()
-                if loss:
-                    loss += loss_fct(logits.view(-1, num_labels), task_labels.view(-1))
-                else:
-                    loss = loss_fct(logits.view(-1, num_labels), task_labels.view(-1))
+                loss += loss_fct(logits.view(-1, num_labels), task_labels.view(-1))
             elif self.config.problem_type == "multi_label_classification":
                 loss_fct = BCEWithLogitsLoss()
-                if loss:
-                    loss += loss_fct(logits, task_labels)
-                else:
-                    loss = loss_fct(logits, task_labels)
+                loss += loss_fct(logits, task_labels)
 
             all_logits = torch.cat((all_logits, logits), dim=1)
 
