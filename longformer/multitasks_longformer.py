@@ -93,8 +93,11 @@ class LongformerForSequenceMultiTasksClassification(LongformerPreTrainedModel):
 
             self.tasks_info = attributes_info
             self.classifiers = nn.ModuleDict()
+            self.attributes_count = len(attributes_info)
+            self.attributes_total_labels_count = 0
 
             for att, info in attributes_info.items():
+
                 self.classifiers[att] = LongformerClassificationHead(config, info['num_labels'])
 
             # Initialize weights and apply final processing
@@ -114,11 +117,6 @@ class LongformerForSequenceMultiTasksClassification(LongformerPreTrainedModel):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-        dialogue_act: Optional[torch.Tensor] = None,
-        social_motive: Optional[torch.Tensor] = None,
-        informational_motive: Optional[torch.Tensor] = None,
-        coordinative_motive: Optional[torch.Tensor] = None,
-        target_speaker: Optional[torch.Tensor] = None
     ) -> Union[Tuple, LongformerSequenceClassifierOutput]:
         r"""
         labels (`torch.LongTensor` of shape `(batch_size,)`, *optional*):
@@ -127,13 +125,6 @@ class LongformerForSequenceMultiTasksClassification(LongformerPreTrainedModel):
             `config.num_labels > 1` a classification loss is computed (Cross-Entropy).
         """
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
-        multitask_labels = {
-            "dialogue_act": dialogue_act,
-            "social_motive": social_motive,
-            "informational_motive": informational_motive,
-            "coordinative_motive": coordinative_motive,
-            "target_speaker": target_speaker
-        }
 
         if global_attention_mask is None:
             logger.warning_once("Initializing global attention on CLS token...")
@@ -154,57 +145,61 @@ class LongformerForSequenceMultiTasksClassification(LongformerPreTrainedModel):
             return_dict=return_dict,
         )
         sequence_output = outputs[0]
-        logits_dict = {}
+        batch_size = sequence_output.shape[0]
+        all_logits = torch.empty(batch_size, 0).to(sequence_output.device)
         loss = None
-        for k, clsr in self.classifiers.items():
+        task_index = 0
+        for k, info in self.tasks_info.items():
+            clsr = self.classifiers[k]
             num_labels = self.tasks_info[k]['num_labels']
             logits = clsr(sequence_output)
-            logits_dict[k] = logits
+            task_labels = labels[:, task_index]
+            task_labels = task_labels.to(logits.device)
 
-            if multitask_labels.get(k, None) is not None:
-                task_labels = multitask_labels[k]
-                task_labels = task_labels.to(logits.device)
+            if self.config.problem_type is None:
+                if num_labels == 1:
+                    self.config.problem_type = "regression"
+                elif num_labels > 1 and (labels.dtype == torch.long or labels.dtype == torch.int):
+                    self.config.problem_type = "single_label_classification"
+                else:
+                    self.config.problem_type = "multi_label_classification"
 
-                if self.config.problem_type is None:
-                    if num_labels == 1:
-                        self.config.problem_type = "regression"
-                    elif num_labels > 1 and (labels.dtype == torch.long or labels.dtype == torch.int):
-                        self.config.problem_type = "single_label_classification"
-                    else:
-                        self.config.problem_type = "multi_label_classification"
-
-                if self.config.problem_type == "regression":
-                    loss_fct = MSELoss()
-                    if num_labels == 1:
-                        if loss:
-                            loss += loss_fct(logits.squeeze(), task_labels.squeeze())
-                        else:
-                            loss = loss_fct(logits.squeeze(), task_labels.squeeze())
-                    else:
-                        if loss:
-                            loss += loss_fct(logits, task_labels)
-                        else:
-                            loss = loss_fct(logits, task_labels)
-                elif self.config.problem_type == "single_label_classification":
-                    loss_fct = CrossEntropyLoss()
+            if self.config.problem_type == "regression":
+                loss_fct = MSELoss()
+                if num_labels == 1:
                     if loss:
-                        loss += loss_fct(logits.view(-1, num_labels), task_labels.view(-1))
+                        loss += loss_fct(logits.squeeze(), task_labels.squeeze())
                     else:
-                        loss = loss_fct(logits.view(-1, num_labels), task_labels.view(-1))
-                elif self.config.problem_type == "multi_label_classification":
-                    loss_fct = BCEWithLogitsLoss()
+                        loss = loss_fct(logits.squeeze(), task_labels.squeeze())
+                else:
                     if loss:
                         loss += loss_fct(logits, task_labels)
                     else:
                         loss = loss_fct(logits, task_labels)
+            elif self.config.problem_type == "single_label_classification":
+                loss_fct = CrossEntropyLoss()
+                if loss:
+                    loss += loss_fct(logits.view(-1, num_labels), task_labels.view(-1))
+                else:
+                    loss = loss_fct(logits.view(-1, num_labels), task_labels.view(-1))
+            elif self.config.problem_type == "multi_label_classification":
+                loss_fct = BCEWithLogitsLoss()
+                if loss:
+                    loss += loss_fct(logits, task_labels)
+                else:
+                    loss = loss_fct(logits, task_labels)
 
-        # if not return_dict:
-        #     output = (logits,) + outputs[2:]
-        #     return ((loss,) + output) if loss is not None else output
+            all_logits = torch.cat((all_logits, logits), dim=1)
+
+
+
+        if not return_dict:
+            output = (logits,) + outputs[2:]
+            return ((loss,) + output) if loss is not None else output
 
         return LongformerSequenceClassifierMultitasksOutput(
             loss=loss,
-            logits=logits_dict,
+            logits=all_logits,
             hidden_states=outputs.hidden_states,
             attentions=outputs.attentions,
             global_attentions=outputs.global_attentions,
