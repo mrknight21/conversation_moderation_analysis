@@ -1,12 +1,11 @@
 #!/bin/bash
-#SBATCH --partition=deeplearn
+#SBATCH --partition=bigmem
 #SBATCH --time=12:00:00
 #SBATCH --ntasks=1
 #SBATCH --job-name=mingbin.longformer
 #SBATCH --cpus-per-task=16
 #SBATCH -A punim0478
 #SBATCH --qos=gpgpudeeplearn
-#SBATCH --constraint=dlg5
 #SBATCH --mem=240G
 #SBATCH --mail-user=mingbinc@student.unimelb.edu.au
 #SBATCH --mail-type=FAIL
