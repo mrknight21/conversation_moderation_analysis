@@ -172,6 +172,7 @@ class LongformerForSequenceMultiTasksClassification(LongformerPreTrainedModel):
                     loss += loss_fct(logits, task_labels)
             elif self.config.problem_type == "single_label_classification":
                 loss_fct = CrossEntropyLoss()
+                print(f"{k}, logit shape:{logits.shape}, label num:{num_labels}, labels: {labels}")
                 loss += loss_fct(logits.view(-1, num_labels), task_labels.view(-1))
             elif self.config.problem_type == "multi_label_classification":
                 loss_fct = BCEWithLogitsLoss()
