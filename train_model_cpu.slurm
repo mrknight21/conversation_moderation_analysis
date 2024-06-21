@@ -5,7 +5,6 @@
 #SBATCH --job-name=mingbin.longformer
 #SBATCH --cpus-per-task=16
 #SBATCH -A punim0478
-#SBATCH --qos=gpgpudeeplearn
 #SBATCH --mem=240G
 #SBATCH --mail-user=mingbinc@student.unimelb.edu.au
 #SBATCH --mail-type=FAIL
