@@ -13,6 +13,6 @@ attributes_info = {
         "num_labels": 2
     },
     "target_speaker":{
-        "num_labels": 12
+        "num_labels": 13
     }
 }
