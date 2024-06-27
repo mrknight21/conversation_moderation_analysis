@@ -133,7 +133,7 @@ def generate_output_sequence(sample):
     return output_string
 
 
-def load_json_data(path, split = "train", source='gpt', method="classification", limit= -1):
+def load_json_data(path, split = "train", source='human', method="classification", limit= -1):
     data_set = []
     with open(path) as f:
         json_objs = json.load(f)
@@ -159,6 +159,12 @@ def load_json_data(path, split = "train", source='gpt', method="classification",
                     sample["coordinative_motive"] = 1 if "coordinative motive" in i["answer"]["gpt"]["motives"] else 0
                     sample["dialogue_act"] = i["answer"]["gpt"]["dialogue act"]
                     sample["target_speaker"] = i["answer"]["gpt"]['target speaker(s)']
+                else:
+                    sample["informational_motive"] = int(i["answer"]["human"]["motives"]["informational motive"]["label"])
+                    sample["social_motive"] = int(i["answer"]["human"]["motives"]["social motive"]["label"])
+                    sample["coordinative_motive"] = int(i["answer"]["human"]["motives"]["coordinative motive"]["label"])
+                    sample["dialogue_act"] = int(i["answer"]["human"]["dialogue act"]["label"])
+                    sample["target_speaker"] = int(i["answer"]["human"]["target speaker(s)"]["label"])
             sample["input_sequence"] = generate_input_sequence(sample)
             sample["output_sequence"] = generate_output_sequence(sample)
             data_set.append(sample)
@@ -209,9 +215,9 @@ def finetune_longformer():
     if mode == "train" or mode == "debug":
     # load data
         train_data = load_json_data(data_path + corpus + "/agg/train.json", method=method, limit=limit)
-        dev_data = load_json_data(data_path + corpus + "/agg/dev.json", split="dev", method=method, limit=limit)
+        dev_data = load_json_data(data_path + corpus + "/agg/dev_valid.json", split="dev", method=method, limit=limit)
     else:
-        test_data = load_json_data(data_path + corpus + "agg/test.json", split="test", method=method)
+        test_data = load_json_data(data_path + corpus + "agg/test_valid.json", split="test", method=method)
 
     # load tokenizer
     tokenizer = AutoTokenizer.from_pretrained(model)

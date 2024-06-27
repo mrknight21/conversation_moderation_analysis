@@ -1,6 +1,7 @@
 import pandas as pd
 import glob
 import json
+from collections import Counter
 from run_llm_apis import get_episode_meta, check_single_answer, gpt_single, gpt4
 from attributes_prompts import construct_prompt_unit, annotators, dialogue_acts
 
@@ -299,13 +300,114 @@ def convert_gpt_human_data(gpt_annotated_folder):
         json.dump(data, outfile)
 
 
+def check_breakeven_requirement(row, attributes):
+    even_votes_attributes = []
+    for a in attributes:
+        votes = row[a + " vote"]
+        if not isinstance(votes, dict):
+            votes = json.loads(votes.replace("'", '"'))
+        vote_count = Counter(votes.values())
+        if vote_count.total() > 1:
+            most_commons = vote_count.most_common()
+            if len(most_commons)> 1 :
+                if most_commons[0][1] == most_commons[1][1]:
+                    even_votes_attributes.append(a)
+    return even_votes_attributes
 
+
+def check_even_vote_counts(votes):
+    if not isinstance(votes, dict):
+        votes = json.loads(votes.replace("'", '"'))
+    vote_count = Counter(votes.values())
+    if vote_count.total() > 1:
+        most_commons = vote_count.most_common()
+        if len(most_commons) > 1:
+            if most_commons[0][1] == most_commons[1][1]:
+                return True
+    return False
+
+def check_even_tie_exists(human_answer):
+
+    tied_attributes = []
+    for m, v in human_answer.items():
+        if m == "motives":
+            for mt, j in human_answer["motives"].items():
+                if check_even_vote_counts(j["vote"]):
+                    tied_attributes.append(mt)
+        else:
+            if check_even_vote_counts(v["vote"]):
+                tied_attributes.append(m)
+    return tied_attributes
+
+
+def update_with_tie_breaking(corpus):
+
+    with open(f"./data/{corpus}/agg/dev.json") as inputfile:
+        dev_data = json.load(inputfile)
+
+    with open(f"./data/{corpus}/agg/test.json", "r") as inputfile:
+        test_data = json.load(inputfile)
+
+    valid_annotations = glob.glob(f"./data/{corpus}/valid/*.xlsx")
+
+    valid_data = {}
+    for a in valid_annotations:
+        topic_id = "".join(a.split("/")[-1].split(".")[:-1]).replace("_valid", "")
+        df = pd.read_excel(a, index_col=0)
+        valid_data[topic_id] = df
+
+    for sample in dev_data:
+        topic_id = sample["topic_id"]
+        instance_id = sample["instance_id"]
+        human_answer = sample["answer"]["human"]
+        if topic_id in valid_data:
+            tied_attributes = check_even_tie_exists(human_answer)
+            df = valid_data[topic_id]
+            if len(tied_attributes) > 0:
+                valid_row = df[df.id == instance_id].iloc[0]
+                for at in tied_attributes:
+                    if "motive" in at:
+                        human_answer["motives"][at]["label"] = valid_row[at]
+                        human_answer["motives"][at]["vote"] = hide_voter_identity(valid_row[at + " vote"])
+                    elif at == "target speaker(s)":
+                        human_answer[at]["label"] = valid_row["target speaker"]
+                        human_answer[at]["vote"]  = hide_voter_identity(valid_row["target speaker vote"])
+                    else:
+                        human_answer[at]["label"] = valid_row[at]
+                        human_answer[at]["vote"] = hide_voter_identity(valid_row[at + " vote"])
+
+    with open(f"./data/{corpus}/agg/dev_valid.json", "w") as outfile:
+        json.dump(dev_data, outfile)
+
+    for sample in test_data:
+        topic_id = sample["topic_id"]
+        instance_id = sample["instance_id"]
+        human_answer = sample["answer"]["human"]
+        if topic_id in valid_data:
+            tied_attributes = check_even_tie_exists(human_answer)
+            df = valid_data[topic_id]
+            if len(tied_attributes) > 0:
+                valid_row = df[df.id == instance_id].iloc[0]
+                for at in tied_attributes:
+                    if "motive" in at:
+                        human_answer["motives"][at]["label"] = valid_row[at]
+                        human_answer["motives"][at]["vote"] = hide_voter_identity(valid_row[at + " vote"])
+                    elif at == "target speaker(s)":
+                        human_answer[at]["label"] = valid_row["target speaker"]
+                        human_answer[at]["vote"]  = hide_voter_identity(valid_row["target speaker vote"])
+                    else:
+                        human_answer[at]["label"] = valid_row[at]
+                        human_answer[at]["vote"] = hide_voter_identity(valid_row[at + " vote"])
+
+    with open(f"./data/{corpus}/agg/test_valid.json", "w") as outfile:
+        json.dump(test_data, outfile)
 
 
 
 
 if __name__ == "__main__":
-    files = [OUPUT_FOLDER + "/gpt-4o_train_full_output.json", OUPUT_FOLDER + "/gpt-4o_train_repaired_output.json"]
-    load_train_data(files)
+    # files = [OUPUT_FOLDER + "/gpt-4o_train_full_output.json", OUPUT_FOLDER + "/gpt-4o_train_repaired_output.json"]
+    # load_train_data(files)
     # aggregate_human_model_outputs(OUPUT_FOLDER + "/gpt-4o_test.json")
     # convert_gpt_human_data("./gpt_annotated_data")
+    update_with_tie_breaking("insq")
