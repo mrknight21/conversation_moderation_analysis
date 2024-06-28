@@ -185,6 +185,11 @@ def finetune_longformer():
     target_attributes_info = {attributes[0]: attributes_info[attributes[0]]}
     attribute_string = attributes[0]
 
+    if args.checkpoint:
+        checkpoint = args.checkpoint
+    else:
+        checkpoint = None
+
     if method == "multi-tasks":
         target_attributes_info = OrderedDict()
         attributes_logits_index_ranges = []
@@ -217,10 +222,14 @@ def finetune_longformer():
         train_data = load_json_data(data_path + corpus + "/agg/train.json", method=method, limit=limit)
         dev_data = load_json_data(data_path + corpus + "/agg/dev_valid.json", split="dev", method=method, limit=limit)
     else:
-        test_data = load_json_data(data_path + corpus + "agg/test_valid.json", split="test", method=method)
+        train_data = None
+        dev_data = load_json_data(data_path + corpus + "/agg/test.json", split="test", method=method)
 
     # load tokenizer
-    tokenizer = AutoTokenizer.from_pretrained(model)
+    if checkpoint:
+        tokenizer = AutoTokenizer.from_pretrained(checkpoint)
+    else:
+        tokenizer = AutoTokenizer.from_pretrained(model)
 
     # max encoder length is 8192 for PubMed
     encoder_max_length = 3072
@@ -273,36 +282,50 @@ def finetune_longformer():
         return batch
 
     remove_columns = ['id', 'topic', 'speakers', 'prior context', 'post context', 'target', 'informational_motive', 'social_motive', 'coordinative_motive', 'dialogue_act', 'target_speaker', 'input_sequence', 'output_sequence']
-
-    # map train data
-    train_data = train_data.map(
-        process_data_to_model_inputs,
-        batched=True,
-        batch_size=batch_size,
-        remove_columns=remove_columns
-    )
-
-    # map val data
-    dev_data = dev_data.map(
-        process_data_to_model_inputs,
-        batched=True,
-        batch_size=batch_size,
-        remove_columns=remove_columns
-    )
-
     tensor_columns = ["input_ids", "attention_mask", "global_attention_mask", "labels"]
 
-    # set Python list to PyTorch tensor
-    train_data.set_format(
-        type="torch",
-        columns=tensor_columns,
-    )
+    if mode == "train" or mode == "debug":
+        # map train data
+        train_data = train_data.map(
+            process_data_to_model_inputs,
+            batched=True,
+            batch_size=batch_size,
+            remove_columns=remove_columns
+        )
 
-    # set Python list to PyTorch tensor
-    dev_data.set_format(
-        type="torch",
-        columns=tensor_columns,
-    )
+        # map val data
+        dev_data = dev_data.map(
+            process_data_to_model_inputs,
+            batched=True,
+            batch_size=batch_size,
+            remove_columns=remove_columns
+        )
+
+        # set Python list to PyTorch tensor
+        train_data.set_format(
+            type="torch",
+            columns=tensor_columns,
+        )
+
+        # set Python list to PyTorch tensor
+        dev_data.set_format(
+            type="torch",
+            columns=tensor_columns,
+        )
+    else:
+        # map test data
+        dev_data = dev_data.map(
+            process_data_to_model_inputs,
+            batched=True,
+            batch_size=batch_size,
+            remove_columns=remove_columns
+        )
+
+        # set Python list to PyTorch tensor
+        dev_data.set_format(
+            type="torch",
+            columns=tensor_columns,
+        )
 
     output_path = args.output_dir + corpus + "/" + model.replace("/", "_") + "_" +attribute_string + "/"
     if not os.path.isdir(output_path):
@@ -366,7 +389,7 @@ def finetune_longformer():
         else:
             longformer_model = LongformerForSequenceMultiTasksClassification(target_attributes_info, longformer_encoder_base=model)
     else:
-        if args.checkpoint:
+        if checkpoint:
             if "led" in model.lower():
                 longformer_model = LEDForSequenceClassification.from_pretrained(args.checkpoint)
             else:
@@ -409,7 +432,9 @@ def finetune_longformer():
 
     if mode == "debug" or mode == "eval":
         print("Start evaluation......")
-        trainer.evaluate()
+        eval_report = trainer.evaluate()
+        with open(f"./results/{corpus}/{'_'.join(checkpoint.split('/')[-2:]).replace('-', '_')}_eval.json", mode="w") as f:
+            json.dump(eval_report, f)
 
 
     if mode == "debug" or mode == "train":

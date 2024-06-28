@@ -11,8 +11,6 @@
 #SBATCH --mail-type=BEGIN
 #SBATCH --mail-type=END
 
-# Add the export command here
-export CUDA_LAUNCH_BLOCKING=1
 
 source /data/projects/punim0478/bryan/anaconda3/bin/activate gpu_env
 python3 main.py "$@"
