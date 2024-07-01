@@ -433,7 +433,7 @@ def finetune_longformer():
             compute_metrics=compute_metrics,
         )
 
-    if mode == "debug" or mode == "eval":
+    if mode == "eval":
         print("Start evaluation......")
         eval_report = trainer.evaluate()
         if checkpoint:

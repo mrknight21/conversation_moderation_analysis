@@ -19,6 +19,7 @@ from transformers.models.longformer.configuration_longformer import LongformerCo
 from transformers.models.longformer.modeling_longformer import LongformerSequenceClassifierOutput, LongformerModel,\
     LongformerPreTrainedModel, LONGFORMER_START_DOCSTRING, LONGFORMER_INPUTS_DOCSTRING
 from transformers.models.led import LEDModel, LEDConfig
+from transformers.models.led.modeling_led import LEDClassificationHead
 
 logger = logging.get_logger(__name__)
 
@@ -79,11 +80,11 @@ class LongformerSequenceClassifierMultitasksOutput(ModelOutput):
 class LongformerForSequenceMultiTasksClassification(LongformerPreTrainedModel):
     def __init__(self, attributes_info, longformer_encoder_base="allenai/longformer-base-4096", checkpoint=None):
         if "led" in longformer_encoder_base.lower():
-            config = LEDConfig.from_pretrained(longformer_encoder_base)
+            self.config = LEDConfig.from_pretrained(longformer_encoder_base)
         else:
-            config = LongformerConfig.from_pretrained(longformer_encoder_base)
-
-        super().__init__(config)
+            self.config = LongformerConfig.from_pretrained(longformer_encoder_base)
+        self.config.longformer_encoder_base = longformer_encoder_base
+        super().__init__(self.config)
         if not checkpoint:
             if "led" in longformer_encoder_base.lower():
                 led = LEDModel.from_pretrained(longformer_encoder_base)
@@ -91,14 +92,22 @@ class LongformerForSequenceMultiTasksClassification(LongformerPreTrainedModel):
             else:
                 self.longformer = LongformerModel.from_pretrained(longformer_encoder_base)
 
-            self.tasks_info = attributes_info
+            self.config.tasks_info = attributes_info
             self.classifiers = nn.ModuleDict()
-            self.attributes_count = len(attributes_info)
-            self.attributes_total_labels_count = 0
+            self.config.attributes_count = len(attributes_info)
+            self.config.attributes_total_labels_count = 0
 
             for att, info in attributes_info.items():
 
-                self.classifiers[att] = LongformerClassificationHead(config, info['num_labels'])
+                if "led" in longformer_encoder_base.lower():
+                    self.classifiers[att] = LEDClassificationHead(
+                        self.config.d_model,
+                        self.config.d_model,
+                        info['num_labels'],
+                        self.config.classifier_dropout,
+                    )
+                else:
+                    self.classifiers[att] = LongformerClassificationHead(self.config, info['num_labels'])
 
             # Initialize weights and apply final processing
             self.post_init()
@@ -137,8 +146,8 @@ class LongformerForSequenceMultiTasksClassification(LongformerPreTrainedModel):
             attention_mask=attention_mask,
             global_attention_mask=global_attention_mask,
             head_mask=head_mask,
-            token_type_ids=token_type_ids,
-            position_ids=position_ids,
+            # token_type_ids=token_type_ids,
+            # position_ids=position_ids,
             inputs_embeds=inputs_embeds,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
@@ -146,12 +155,16 @@ class LongformerForSequenceMultiTasksClassification(LongformerPreTrainedModel):
         )
         sequence_output = outputs[0]
         batch_size = sequence_output.shape[0]
+        if "led" in self.config.longformer_encoder_base.lower():
+            indices = torch.nonzero(global_attention_mask)
+            sequence_output = sequence_output[indices[:, 0], indices[:, 1]]
+
         all_logits = torch.empty(batch_size, 0).to(sequence_output.device)
         loss = torch.tensor(0.0, dtype=torch.float).to(sequence_output.device)
         task_index = 0
-        for k, info in self.tasks_info.items():
+        for k, info in self.config.tasks_info.items():
             clsr = self.classifiers[k]
-            num_labels = self.tasks_info[k]['num_labels']
+            num_labels = self.config.tasks_info[k]['num_labels']
             logits = clsr(sequence_output)
             task_labels = labels[:, task_index]
             task_labels = task_labels.to(logits.device)
