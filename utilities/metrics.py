@@ -14,6 +14,11 @@ def compute_classification_eval_report(eval_pred):
     predictions = np.argmax(predictions, axis=1)
     return classification_report(labels, predictions, output_dict=True)
 
+def compute_led_classification_eval_report(eval_pred):
+    predictions, labels = eval_pred
+    predictions = np.argmax(predictions[0], axis=1)
+    return classification_report(labels, predictions, output_dict=True)
+
 
 
 def create_multitask_classification_eval_metric(attributes_info, flatdict=True):

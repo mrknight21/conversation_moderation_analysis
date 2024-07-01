@@ -174,6 +174,10 @@ class LongformerForSequenceMultiTasksClassification(LongformerPreTrainedModel):
                 loss_fct = CrossEntropyLoss()
                 try:
                     loss += loss_fct(logits.view(-1, num_labels), task_labels.view(-1))
+                    if any(task_labels >=  num_labels):
+                        print(f"attribute: {k}")
+                        print(f"num_labels: {num_labels}")
+                        print(f"task_labels: {task_labels}")
                 except Exception as e:
                     print(e)
                     print(f"attribute: {k}")
@@ -185,12 +189,6 @@ class LongformerForSequenceMultiTasksClassification(LongformerPreTrainedModel):
 
             all_logits = torch.cat((all_logits, logits), dim=1)
             task_index += 1
-
-
-
-        if not return_dict:
-            output = (logits,) + outputs[2:]
-            return ((loss,) + output) if loss is not None else output
 
         return LongformerSequenceClassifierMultitasksOutput(
             loss=loss,

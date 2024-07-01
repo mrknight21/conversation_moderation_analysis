@@ -7,7 +7,7 @@ import json
 from collections import OrderedDict
 from tqdm import tqdm
 from datasets import load_dataset, load_metric, Dataset
-from utilities.metrics import compute_classification_accuracy, compute_classification_eval_report, create_multitask_classification_eval_metric, create_rogue_matric
+from utilities.metrics import compute_classification_accuracy, compute_classification_eval_report, create_multitask_classification_eval_metric, create_rogue_matric, compute_led_classification_eval_report
 from transformers import (
     Seq2SeqTrainer,
     Seq2SeqTrainingArguments,
@@ -223,7 +223,7 @@ def finetune_longformer():
         dev_data = load_json_data(data_path + corpus + "/agg/dev_valid.json", split="dev", method=method, limit=limit)
     else:
         train_data = None
-        dev_data = load_json_data(data_path + corpus + "/agg/test.json", split="test", method=method)
+        dev_data = load_json_data(data_path + corpus + "/agg/test_valid.json", split="test", method=method)
 
     # load tokenizer
     if checkpoint:
@@ -405,7 +405,10 @@ def finetune_longformer():
     elif method == "multi-tasks":
         compute_metrics = create_multitask_classification_eval_metric(target_attributes_info)
     else:
-        compute_metrics = compute_classification_eval_report
+        if "led" in model.lower():
+            compute_metrics = compute_led_classification_eval_report
+        else:
+            compute_metrics = compute_classification_eval_report
 
     if method == "sequence2sequence":
 
@@ -433,8 +436,12 @@ def finetune_longformer():
     if mode == "debug" or mode == "eval":
         print("Start evaluation......")
         eval_report = trainer.evaluate()
-        with open(f"./results/{corpus}/{'_'.join(checkpoint.split('/')[-2:]).replace('-', '_')}_eval.json", mode="w") as f:
-            json.dump(eval_report, f)
+        if checkpoint:
+            with open(f"./results/{corpus}/{'_'.join(checkpoint.split('/')[-2:]).replace('-', '_')}_eval.json", mode="w") as f:
+                json.dump(eval_report, f)
+        else:
+            with open(f"./results/{corpus}/{model.replace('/', '_')}_{attributes[0]}_eval.json", mode="w") as f:
+                json.dump(eval_report, f)
 
 
     if mode == "debug" or mode == "train":
