@@ -232,7 +232,10 @@ def finetune_longformer():
         tokenizer = AutoTokenizer.from_pretrained(model)
 
     # max encoder length is 8192 for PubMed
-    encoder_max_length = 3072
+    if mode == "debug":
+        encoder_max_length = 1024
+    else:
+        encoder_max_length = 3072
     decoder_max_length = 64
 
     def process_data_to_model_inputs(batch):
