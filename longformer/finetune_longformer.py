@@ -17,7 +17,8 @@ from transformers import (
     AutoModelForSeq2SeqLM,
     LongformerForSequenceClassification,
     LEDForSequenceClassification,
-    LEDForConditionalGeneration
+    LEDConfig,
+    LongformerConfig,
 )
 import wandb
 
@@ -225,7 +226,7 @@ def finetune_longformer():
         dev_data = load_json_data(data_path + corpus + "/agg/dev_valid.json", split="dev", limit=limit)
     else:
         train_data = None
-        dev_data = load_json_data(data_path + corpus + "/agg/test_valid.json", split="test", method=method)
+        dev_data = load_json_data(data_path + corpus + "/agg/test_valid.json", split="test")
 
     # load tokenizer
     if checkpoint:
@@ -373,8 +374,10 @@ def finetune_longformer():
 
 
     print(f"loading model......{args.model}")
-    # load model + enable gradient checkpointing & disable cache for checkpointing
-    # led = AutoModelForSeq2SeqLM.from_pretrained(args.model_string, gradient_checkpointing=True, use_cache=False)
+
+
+
+
     if method == "sequence2sequence":
         if args.checkpoint:
             longformer_model = AutoModelForSeq2SeqLM.from_pretrained(args.checkpoint)
@@ -390,18 +393,28 @@ def finetune_longformer():
         longformer_model.config.no_repeat_ngram_size = 3
     elif method == "multi-tasks":
         if args.checkpoint:
-            longformer_model = LongformerForSequenceMultiTasksClassification(target_attributes_info, longformer_encoder_base=model, checkpoint=args.checkpoint)
+            longformer_model = LongformerForSequenceMultiTasksClassification.from_pretrained(checkpoint)
+            # longformer_model = LongformerForSequenceMultiTasksClassification(target_attributes_info, longformer_encoder_base=model, checkpoint=args.checkpoint)
         else:
-            longformer_model = LongformerForSequenceMultiTasksClassification(target_attributes_info, longformer_encoder_base=model)
+            if "led" in model.lower():
+                config = LEDConfig.from_pretrained(model)
+            else:
+                config = LongformerConfig.from_pretrained(model)
+            config.longformer_encoder_base = model
+            config.tasks_info = target_attributes_info
+            longformer_model = LongformerForSequenceMultiTasksClassification(config)
     else:
         if checkpoint:
             if "led" in model.lower():
-                longformer_model = LEDForSequenceClassification.from_pretrained(args.checkpoint)
+                longformer_model = LongformerForSequenceMultiTasksClassification.from_pretrained(checkpoint)
             else:
                 longformer_model = LongformerForSequenceClassification.from_pretrained(args.checkpoint)
         else:
             if "led" in model.lower():
-                longformer_model = LongformerForSequenceMultiTasksClassification(target_attributes_info, longformer_encoder_base=model)
+                config = LEDConfig.from_pretrained(model)
+                config.longformer_encoder_base = model
+                config.tasks_info = target_attributes_info
+                longformer_model = LongformerForSequenceMultiTasksClassification(config)
             else:
                 longformer_model = LongformerForSequenceClassification.from_pretrained(model, num_labels=target_attributes_info[attributes[0]]["num_labels"])
 

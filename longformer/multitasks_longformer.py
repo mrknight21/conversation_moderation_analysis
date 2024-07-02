@@ -1,7 +1,7 @@
 import math
 from dataclasses import dataclass
 from typing import Optional, Tuple, Union
-import logging
+from collections import OrderedDict
 import torch
 import torch.utils.checkpoint
 from torch import nn
@@ -78,39 +78,36 @@ class LongformerSequenceClassifierMultitasksOutput(ModelOutput):
     LONGFORMER_START_DOCSTRING,
 )
 class LongformerForSequenceMultiTasksClassification(LongformerPreTrainedModel):
-    def __init__(self, attributes_info, longformer_encoder_base="allenai/longformer-base-4096", checkpoint=None):
-        if "led" in longformer_encoder_base.lower():
-            self.config = LEDConfig.from_pretrained(longformer_encoder_base)
+    def __init__(self, config):
+
+        super().__init__(config)
+        self.config = config
+        self.config.tasks_info = OrderedDict(sorted(self.config.tasks_info.items(), key=lambda x: x[1]["attribute_index"]))
+        self.longformer_encoder_base = config.longformer_encoder_base
+        if "led" in self.config.longformer_encoder_base.lower():
+            led = LEDModel.from_pretrained(config.longformer_encoder_base)
+            self.longformer = led.encoder
         else:
-            self.config = LongformerConfig.from_pretrained(longformer_encoder_base)
-        self.config.longformer_encoder_base = longformer_encoder_base
-        super().__init__(self.config)
-        if not checkpoint:
-            if "led" in longformer_encoder_base.lower():
-                led = LEDModel.from_pretrained(longformer_encoder_base)
-                self.longformer = led.encoder
+            self.longformer = LongformerModel.from_pretrained(config.longformer_encoder_base)
+
+        self.classifiers = nn.ModuleDict()
+        self.config.attributes_count = len(self.config.tasks_info)
+        self.config.attributes_total_labels_count = 0
+
+        for att, info in config.tasks_info.items():
+
+            if "led" in self.config.longformer_encoder_base.lower():
+                self.classifiers[att] = LEDClassificationHead(
+                    self.config.d_model,
+                    self.config.d_model,
+                    info['num_labels'],
+                    self.config.classifier_dropout,
+                )
             else:
-                self.longformer = LongformerModel.from_pretrained(longformer_encoder_base)
+                self.classifiers[att] = LongformerClassificationHead(self.config, info['num_labels'])
 
-            self.config.tasks_info = attributes_info
-            self.classifiers = nn.ModuleDict()
-            self.config.attributes_count = len(attributes_info)
-            self.config.attributes_total_labels_count = 0
-
-            for att, info in attributes_info.items():
-
-                if "led" in longformer_encoder_base.lower():
-                    self.classifiers[att] = LEDClassificationHead(
-                        self.config.d_model,
-                        self.config.d_model,
-                        info['num_labels'],
-                        self.config.classifier_dropout,
-                    )
-                else:
-                    self.classifiers[att] = LongformerClassificationHead(self.config, info['num_labels'])
-
-            # Initialize weights and apply final processing
-            self.post_init()
+        # Initialize weights and apply final processing
+        self.post_init()
 
     @add_start_docstrings_to_model_forward(LONGFORMER_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
     def forward(
@@ -161,8 +158,9 @@ class LongformerForSequenceMultiTasksClassification(LongformerPreTrainedModel):
 
         all_logits = torch.empty(batch_size, 0).to(sequence_output.device)
         loss = torch.tensor(0.0, dtype=torch.float).to(sequence_output.device)
-        task_index = 0
+
         for k, info in self.config.tasks_info.items():
+            task_index = info["attribute_index"]
             clsr = self.classifiers[k]
             num_labels = self.config.tasks_info[k]['num_labels']
             logits = clsr(sequence_output)
@@ -201,7 +199,6 @@ class LongformerForSequenceMultiTasksClassification(LongformerPreTrainedModel):
                 loss += loss_fct(logits, task_labels)
 
             all_logits = torch.cat((all_logits, logits), dim=1)
-            task_index += 1
 
         return LongformerSequenceClassifierMultitasksOutput(
             loss=loss,
