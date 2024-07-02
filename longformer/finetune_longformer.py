@@ -133,7 +133,7 @@ def generate_output_sequence(sample):
     return output_string
 
 
-def load_json_data(path, split = "train", source='human', method="classification", limit= -1):
+def load_json_data(path, split = "train", source='human', limit= -1):
     data_set = []
     with open(path) as f:
         json_objs = json.load(f)
@@ -190,7 +190,7 @@ def finetune_longformer():
     else:
         checkpoint = None
 
-    if method == "multi-tasks":
+    if method == "multi-tasks" or "led" in model.lower():
         target_attributes_info = OrderedDict()
         attributes_logits_index_ranges = []
         attribute_index = 0
@@ -209,6 +209,8 @@ def finetune_longformer():
 
         if len(attributes) == len(all_attributes):
             attribute_string = "all"
+        elif len(attributes) == 1:
+            attribute_string = attributes[0]
         else:
             attribute_string = "_".join([ "".join([w[0] for w in a.split("_")]) for a in attributes])
 
@@ -219,8 +221,8 @@ def finetune_longformer():
 
     if mode == "train" or mode == "debug":
     # load data
-        train_data = load_json_data(data_path + corpus + "/agg/train.json", method=method, limit=limit)
-        dev_data = load_json_data(data_path + corpus + "/agg/dev_valid.json", split="dev", method=method, limit=limit)
+        train_data = load_json_data(data_path + corpus + "/agg/train.json", limit=limit)
+        dev_data = load_json_data(data_path + corpus + "/agg/dev_valid.json", split="dev", limit=limit)
     else:
         train_data = None
         dev_data = load_json_data(data_path + corpus + "/agg/test_valid.json", split="test", method=method)
@@ -261,7 +263,7 @@ def finetune_longformer():
                 [-100 if token == tokenizer.pad_token_id else token for token in labels]
                 for labels in batch["labels"]
             ]
-        elif method == "multi-tasks":
+        elif method == "multi-tasks" or "led" in model.lower():
             labels = []
             for att in attributes:
                 labels.append(batch[att])
@@ -399,19 +401,16 @@ def finetune_longformer():
                 longformer_model = LongformerForSequenceClassification.from_pretrained(args.checkpoint)
         else:
             if "led" in model.lower():
-                longformer_model = LEDForSequenceClassification.from_pretrained(model, num_labels=target_attributes_info[attributes[0]]["num_labels"])
+                longformer_model = LongformerForSequenceMultiTasksClassification(target_attributes_info, longformer_encoder_base=model)
             else:
                 longformer_model = LongformerForSequenceClassification.from_pretrained(model, num_labels=target_attributes_info[attributes[0]]["num_labels"])
 
     if method == "sequence2sequence":
         compute_metrics = create_rogue_matric(tokenizer)
-    elif method == "multi-tasks":
+    elif method == "multi-tasks" or "led" in model.lower():
         compute_metrics = create_multitask_classification_eval_metric(target_attributes_info)
     else:
-        if "led" in model.lower():
-            compute_metrics = compute_led_classification_eval_report
-        else:
-            compute_metrics = compute_classification_eval_report
+        compute_metrics = compute_classification_eval_report
 
     if method == "sequence2sequence":
 
