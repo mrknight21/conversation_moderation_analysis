@@ -116,11 +116,15 @@ def parse_args():
 def generate_input_sequence(sample):
     input_string = f"Topic: {sample['topic']} \n"
     input_string += f"Speakers: {sample['speakers']} \n\n"
+
     if len(sample["prior context"]) > 0:
         input_string += f"Prior context: {sample['prior context']} \n\n"
+
+    input_string += f"Target: {sample['target']} \n\n"
+
     if len(sample["post context"]) > 0:
-        input_string += f"Post context: {sample['prior context']} \n\n"
-    input_string += f"Target: {sample['target']}"
+        input_string += f"Post context: {sample['post context']} \n\n"
+
     return input_string
 
 
@@ -223,10 +227,10 @@ def finetune_longformer():
     if mode == "train" or mode == "debug":
     # load data
         train_data = load_json_data(data_path + corpus + "/agg/train.json", limit=limit)
-        dev_data = load_json_data(data_path + corpus + "/agg/dev_valid.json", split="dev", limit=limit)
+        dev_data = load_json_data(data_path + corpus + "/agg/dev.json", split="dev", limit=limit)
     else:
         train_data = None
-        dev_data = load_json_data(data_path + corpus + "/agg/test_valid.json", split="test")
+        dev_data = load_json_data(data_path + corpus + "/agg/test.json", split="test")
 
     # load tokenizer
     if checkpoint:
@@ -394,7 +398,6 @@ def finetune_longformer():
     elif method == "multi-tasks":
         if args.checkpoint:
             longformer_model = LongformerForSequenceMultiTasksClassification.from_pretrained(checkpoint)
-            # longformer_model = LongformerForSequenceMultiTasksClassification(target_attributes_info, longformer_encoder_base=model, checkpoint=args.checkpoint)
         else:
             if "led" in model.lower():
                 config = LEDConfig.from_pretrained(model)
@@ -447,15 +450,15 @@ def finetune_longformer():
             tokenizer=tokenizer,
             compute_metrics=compute_metrics,
         )
-    if mode == "debug" or mode == "eval":
-        print("Start evaluation......")
-        eval_report = trainer.evaluate()
-        if checkpoint:
-            with open(f"./results/{corpus}/{'_'.join(checkpoint.split('/')[-2:]).replace('-', '_')}_eval.json", mode="w") as f:
-                json.dump(eval_report, f)
-        else:
-            with open(f"./results/{corpus}/{model.replace('/', '_')}_{attributes[0]}_eval.json", mode="w") as f:
-                json.dump(eval_report, f)
+    # if mode == "debug" or mode == "eval":
+    #     print("Start evaluation......")
+    #     eval_report = trainer.evaluate()
+    #     if checkpoint:
+    #         with open(f"./results/{corpus}/{'_'.join(checkpoint.split('/')[-2:]).replace('-', '_')}_eval.json", mode="w") as f:
+    #             json.dump(eval_report, f)
+    #     else:
+    #         with open(f"./results/{corpus}/{model.replace('/', '_')}_{attributes[0]}_eval.json", mode="w") as f:
+    #             json.dump(eval_report, f)
 
 
     if mode == "debug" or mode == "train":
