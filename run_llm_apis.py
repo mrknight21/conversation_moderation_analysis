@@ -52,30 +52,44 @@ def extract_responses(input_string, keyword):
     matches = pattern.findall(input_string)
     return [match.strip() for match in matches]
 
-def check_single_answer(output_text, instance):
-
+def check_single_answer(output_text, labels=None):
     try:
         answer = json.loads(output_text)
-        if any([k not in answer for k in ["motives", "dialogue act", "target speaker(s)"] ]):
-            return False
-        else:
-            motives = answer["motives"]
-            if motives:
-                for m in motives:
-                    if m not in ["informational motive", "social motive", "coordinative motive"]:
-                        return False
-            dialogue_act = answer["dialogue act"]
-            if dialogue_act not in ["Probing", "Confronting", "Supplement", "Interpretation", "Instruction", "All Utility"]:
+        if not labels or len(labels) == 5:
+            if any([k not in answer for k in ["motives", "dialogue act", "target speaker(s)"] ]):
                 return False
-            speaker = answer["target speaker(s)"]
-            if "speakers" in instance["meta"]:
-                if speaker not in instance["meta"]["speakers"]:
+            else:
+                motives = answer["motives"]
+                if motives:
+                    for m in motives:
+                        if m not in ["informational motive", "social motive", "coordinative motive"]:
+                            return False
+                dialogue_act = answer["dialogue act"]
+                if dialogue_act not in ["Probing", "Confronting", "Supplement", "Interpretation", "Instruction", "All Utility"]:
+                    return False
+        else:
+            if labels[0] == "dialogue act":
+                dialogue_act = answer["dialogue act"]
+                if dialogue_act not in ["Probing", "Confronting", "Supplement", "Interpretation", "Instruction",
+                                        "All Utility"]:
+                    return False
+            elif "motive" in labels[0]:
+                if "verdict" not in answer :
+                    return False
+                pred = int(answer["verdict"])
+                if pred != 1 and pred != 0:
+                    return False
+            else:
+                if "target speaker(s)" not in answer :
+                    return False
+                pred = int(answer["target speaker(s)"].split(" ")[0])
+                if pred > 12 or pred < 0:
                     return False
         return True
 
     except Exception as e:
         return False
-def gpt_batch(batch_prompts, model_name='gpt35', is_single_unit=True):
+def gpt_batch(batch_prompts, model_name='gpt35', labels=None):
     results = []
     api_func = None
     output = None
@@ -88,7 +102,7 @@ def gpt_batch(batch_prompts, model_name='gpt35', is_single_unit=True):
         is_ans_validate = False
         while trial < MAX_TRIALS:
             output = gpt_single(instance["prompt"], api_func=api_func, tries=3, wait_time=1)
-            if check_single_answer(output, instance):
+            if check_single_answer(output, labels=labels):
                 is_ans_validate = True
                 break
             else:

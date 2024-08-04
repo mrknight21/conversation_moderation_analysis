@@ -7,8 +7,9 @@ from attributes_prompts import construct_prompt_unit, annotators, dialogue_acts
 
 MODE = "train"
 MODEL = "gpt-4o"
-INPUT_FOLDER = f"./{MODE}_data"
-OUPUT_FOLDER = f"./batch_data/{MODE}"
+CORPUS = "roundtable"
+INPUT_FOLDER = f"./data/{CORPUS}/{MODE}_data"
+OUPUT_FOLDER = f"./data/{CORPUS}/output/"
 PRIOR_CONTEXT_SIZE = 5
 POST_CONTEXT_SIZE = 2
 
@@ -44,7 +45,7 @@ def process_episode(episode):
                 "context": context,
                 "target": (r.speaker, r.role, r.text)
             }
-            prompt = construct_prompt_unit(instance)
+            prompt = construct_prompt_unit(instance, CORPUS)
             instance["prompt"] = prompt
             task_instances.append(instance)
     return task_instances
@@ -108,9 +109,12 @@ def aggregate_human_model_outputs(gpt_output_file):
     episodes = glob.glob(INPUT_FOLDER + "/*.xlsx")
     unprocess_row = []
     for episode in episodes:
+        if "~$" in episode:
+            continue
         ep_name = episode.split("/")[-1].replace(".xlsx", "")
         meta = get_episode_meta(episode)
         debate = pd.read_excel(episode, index_col=0)
+        debate['id'] = debate['id'].astype(str)
         for i, r in debate.iterrows():
             if r.role == "mod":
                 id = ep_name + "_" + r.id
@@ -152,7 +156,7 @@ def aggregate_human_model_outputs(gpt_output_file):
                     data[id]["context"] = context
                     data[id]["target"] = {"speaker": r.speaker, "role": r.role, "content": r.text}
 
-                    # human answ
+                    # human answ:
                     human_answer = {
                         "motives":{
                             "informational motive": {
@@ -179,13 +183,18 @@ def aggregate_human_model_outputs(gpt_output_file):
                     }
                     try:
                         gpt_answer = json.dumps(data[id]["answer"])
-                        while not check_single_answer(gpt_answer, instance):
+                        while not check_single_answer(gpt_answer):
                             gpt_answer = gpt_single(prompt, gpt4)
                         gpt_answer = json.loads(gpt_answer)
                         data[id]["answer"] = {"gpt": gpt_answer, "human": human_answer}
                         data[id]["answer"]["gpt"]["dialogue act"] = dialogue_acts[data[id]["answer"]["gpt"]["dialogue act"]]
                         gpt_pred_speaker = data[id]["answer"]["gpt"]["target speaker(s)"]
-                        data[id]["answer"]["gpt"]["target speaker(s)"] = [i for i, s in enumerate(meta["speakers"]) if gpt_pred_speaker.lower() in s.lower()][0]
+                        speakers_search = [j for j, s in enumerate(meta["speakers"]) if gpt_pred_speaker.lower() in s.lower()]
+                        if not speakers_search:
+                            speaker_code = int(gpt_pred_speaker.split(" ")[0])
+                        else:
+                            speaker_code = int(speakers_search[0])
+                        data[id]["answer"]["gpt"]["target speaker(s)"] = speaker_code
                         data[id]["answer"]["gpt"]["prompt"] = prompt
                     except Exception as e:
                         unprocess_row.append(id)
@@ -401,13 +410,16 @@ def update_with_tie_breaking(corpus):
 
     with open(f"./data/{corpus}/agg/test_valid.json", "w") as outfile:
         json.dump(test_data, outfile)
+    with open(f"./data/{corpus}/agg/test_valid.json", "r") as outfile:
+        test = json.load(outfile)
+
 
 
 
 
 if __name__ == "__main__":
     # files = [OUPUT_FOLDER + "/gpt-4o_train_full_output.json", OUPUT_FOLDER + "/gpt-4o_train_repaired_output.json"]
-    # load_train_data(files)
-    # aggregate_human_model_outputs(OUPUT_FOLDER + "/gpt-4o_test.json")
+    load_train_data([OUPUT_FOLDER + "/gpt-4o_train.json"])
+    # aggregate_human_model_outputs(OUPUT_FOLDER + "gpt-4o_test.json")
     # convert_gpt_human_data("./gpt_annotated_data")
-    update_with_tie_breaking("insq")
+    # update_with_tie_breaking("insq")

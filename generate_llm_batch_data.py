@@ -6,22 +6,25 @@ from attributes_prompts import construct_prompt_unit
 import json
 import re
 
-MODE = "test"
-INPUT_FOLDER = f"./data/{MODE}_data"
-OUPUT_FOLDER = f"./data/batch_data/{MODE}"
+MODE = "train"
+CORPUS = "roundtable"
+INPUT_FOLDER = f"./data/{CORPUS}/{MODE}_data"
+OUPUT_FOLDER = f"./data/{CORPUS}/output"
 LOG_FOLDER = "./log"
 MODEL = "gpt-4o"
 PRIOR_CONTEXT_SIZE = 5
 POST_CONTEXT_SIZE = 2
+LABELS = ["informational motive", "social motive", "coordinative motive", "dialogue act", "target speaker"]
 
 
 client = OpenAI(api_key='', organization='')
 
-def process_episode(episode, model_name):
+def process_episode(episode, model_name, labels):
     meta = get_episode_meta(episode)
     debate = pd.read_excel(episode, index_col=0)
 
     gpt_prompts = []
+    debate['id'] = debate['id'].astype(str)
     for i, r in debate.iterrows():
         if r.role == "mod":
             utt_id = int(r.id.split("_")[0])
@@ -48,7 +51,7 @@ def process_episode(episode, model_name):
                 "context": context,
                 "target": (r.speaker, r.role, r.text)
             }
-            prompt = construct_prompt_unit(instance)
+            prompt = construct_prompt_unit(instance, CORPUS, labels)
             instance["prompt"] = prompt
             gpt_call = {"custom_id": episode.split("/")[-1].replace(".xlsx", "") + "_" + r.id,
                         "method": "POST",
@@ -80,7 +83,7 @@ def dicts_to_jsonl(data_list: list, filename: str) -> None:
             jout = json.dumps(ddict) + '\n'
             out.write(jout)
 
-def post_openai_batch_request(batch_data_file, part_index=-1):
+def post_openai_batch_request(batch_data_file, part_index=-1, labels=LABELS):
     # upload batch request data
     batch_input_file = client.files.create(
         file=open(batch_data_file, "rb"),
@@ -94,7 +97,8 @@ def post_openai_batch_request(batch_data_file, part_index=-1):
         endpoint="/v1/chat/completions",
         completion_window="24h",
         metadata={
-            "description": f"{MODE} part {part_index}"
+            "description": f"{MODE} part {part_index}",
+            "labels": str(labels)
         }
     )
 
@@ -103,10 +107,10 @@ def post_openai_batch_request(batch_data_file, part_index=-1):
     print(response)
     return batch_input_file_id, response.id
 
-def main():
+def main(labels = LABELS):
 
     episodes = sorted(glob.glob(INPUT_FOLDER + "/*.xlsx"))
-    chunk_limit = 20
+    chunk_limit = 70
     batch_data = []
     part_index = 0
     batch_record = {}
@@ -114,21 +118,29 @@ def main():
         if "~$" in e:
             continue
 
-        eps_data = process_episode(e, MODEL)
+        eps_data = process_episode(e, MODEL, labels)
         batch_data.extend(eps_data)
         if (i + 1) % chunk_limit == 0:
             print(f"uploading batch part {part_index}!")
-            batch_data_file = OUPUT_FOLDER + f"/isq_batch_{MODE}_part{part_index}.jsonl"
+            if len(labels) == 5:
+                batch_data_file = OUPUT_FOLDER + f"/isq_batch_{MODE}_part{part_index}.jsonl"
+            else:
+                label_tag = "".join([w[0] for w in labels[0].split(" ")])
+                batch_data_file = OUPUT_FOLDER + f"/isq_batch_{MODE}_{label_tag}_part{part_index}.jsonl"
             dicts_to_jsonl(batch_data, batch_data_file)
-            batch_input_file_id, batch_id = post_openai_batch_request(batch_data_file, part_index)
+            batch_input_file_id, batch_id = post_openai_batch_request(batch_data_file, part_index, labels)
             batch_record[part_index] = {"file_id": batch_input_file_id, "batch_id": batch_id}
             part_index += 1
             batch_data = []
     if len(batch_data) != 0:
         print(f"uploading batch part {part_index}!")
-        batch_data_file = OUPUT_FOLDER + f"/isq_batch_{MODE}_part{part_index}.jsonl"
+        if len(labels) == 5:
+            batch_data_file = OUPUT_FOLDER + f"/isq_batch_{MODE}_part{part_index}.jsonl"
+        else:
+            label_tag = "".join([w[0] for w in labels[0].split(" ")])
+            batch_data_file = OUPUT_FOLDER + f"/isq_batch_{MODE}_{label_tag}_part{part_index}.jsonl"
         dicts_to_jsonl(batch_data, batch_data_file)
-        batch_input_file_id, batch_id = post_openai_batch_request(batch_data_file, part_index)
+        batch_input_file_id, batch_id = post_openai_batch_request(batch_data_file, part_index, labels)
         batch_record[part_index] = {"file_id": batch_input_file_id, "batch_id": batch_id}
         part_index += 1
         batch_data = []
@@ -145,25 +157,45 @@ def check_status(file):
                 batch_info = client.batches.retrieve(ids["batch_id"])
                 print(batch_info.status)
 
-def check_single_answer(output_text):
+def check_single_answer(output_text, labels = LABELS):
     try:
         answer = json.loads(output_text)
-        if any([k not in answer for k in ["motives", "dialogue act", "target speaker(s)"] ]):
-            return False
-        else:
-            motives = answer["motives"]
-            if motives:
-                for m in motives:
-                    if m not in ["informational motive", "social motive", "coordinative motive"]:
-                        return False
-            dialogue_act = answer["dialogue act"]
-            if dialogue_act not in ["Probing", "Confronting", "Supplement", "Interpretation", "Instruction", "All Utility"]:
+        if labels == LABELS:
+            if any([k not in answer for k in ["motives", "dialogue act", "target speaker(s)"] ]):
                 return False
+            else:
+                motives = answer["motives"]
+                if motives:
+                    for m in motives:
+                        if m not in ["informational motive", "social motive", "coordinative motive"]:
+                            return False
+                dialogue_act = answer["dialogue act"]
+                if dialogue_act not in ["Probing", "Confronting", "Supplement", "Interpretation", "Instruction", "All Utility"]:
+                    return False
+        else:
+            if labels[0] == "dialogue act":
+                dialogue_act = answer["dialogue act"]
+                if dialogue_act not in ["Probing", "Confronting", "Supplement", "Interpretation", "Instruction",
+                                        "All Utility"]:
+                    return False
+            elif "motive" in labels[0]:
+                if "verdict" not in answer :
+                    return False
+                pred = int(answer["verdict"])
+                if pred != 1 and pred != 0:
+                    return False
+            else:
+                if "target speaker(s)" not in answer :
+                    return False
+                pred = int(answer["target speaker(s)"].split(" ")[0])
+                if pred > 12 or pred < 0:
+                    return False
         return True
+
     except Exception as e:
         return False
 
-def download_batch_output(batch_id, part_index=-1, process_invalid=False):
+def download_batch_output(batch_id, part_index=-1, process_invalid=False, labels=LABELS):
     print(f"{batch_id} status:")
     batch_info = client.batches.retrieve(batch_id)
     print(batch_info.status)
@@ -174,7 +206,11 @@ def download_batch_output(batch_id, part_index=-1, process_invalid=False):
         if part_index > -1:
             filename = OUPUT_FOLDER + f"/isq_batch_{MODEL}_{MODE}_output_part{part_index}.jsonl"
         else:
-            filename = OUPUT_FOLDER + f"/isq_batch_{MODEL}_{MODE}_output.jsonl"
+            if len(labels) == 1:
+                label_tag = "".join([w[0] for w in labels[0].split(" ")])
+                filename = OUPUT_FOLDER + f"/isq_batch_{MODEL}_{MODE}_{label_tag}_output.jsonl"
+            else:
+                filename = OUPUT_FOLDER + f"/isq_batch_{MODEL}_{MODE}_output.jsonl"
         with open(filename, 'w') as out:
             json_pattern = re.compile(r'\{(?:[^{}]|(?:\{[^{}]*\}))*\}')
             for l in content.iter_lines():
@@ -190,7 +226,7 @@ def download_batch_output(batch_id, part_index=-1, process_invalid=False):
                     model_used = body["model"]
                     answer = body["choices"][0]["message"]["content"]
                     matches = json_pattern.findall(answer)
-                    if len(matches) > 0 and check_single_answer(matches[0]):
+                    if len(matches) > 0 and check_single_answer(matches[0], labels=labels):
                         answer = matches[0]
                         answer = json.loads(answer)
                         usage = body["usage"]
@@ -207,13 +243,19 @@ def download_batch_output(batch_id, part_index=-1, process_invalid=False):
         if len(invalid_outputs) > 0 and process_invalid:
             invalid_ids = [c["custom_id"] for c in invalid_outputs]
             tasks = []
-            with open(f"./data/batch_data/isq_batch.jsonl", 'r') as f:
+            if len(labels) == 5:
+                batch_data_file = OUPUT_FOLDER + f"/isq_batch_{MODE}_part{part_index}.jsonl"
+            else:
+                label_tag = "".join([w[0] for w in labels[0].split(" ")])
+                batch_data_file = OUPUT_FOLDER + f"/isq_batch_{MODE}_{label_tag}_part0.jsonl"
+
+            with open(batch_data_file, 'r') as f:
                 for l in f:
                     call = json.loads(l)
                     if call["custom_id"] in invalid_ids:
                         task = {"id": call["custom_id"], "prompt": call["body"]["messages"][0]["content"], "meta":{}}
                         tasks.append(task)
-                retry_outputs = gpt_batch(tasks, model_name="gpt4")
+                retry_outputs = gpt_batch(tasks, model_name="gpt4", labels=labels)
                 for i, r in enumerate(retry_outputs):
                     invalid_case = invalid_outputs[i]
                     if invalid_case["custom_id"] == r["id"]:
@@ -232,7 +274,7 @@ def download_batch_output(batch_id, part_index=-1, process_invalid=False):
                         json_outputs.append(output)
 
     if len(json_outputs) > 0:
-        with open(OUPUT_FOLDER + f'/{MODEL}_{MODE}_repaired_output.json', 'w') as f:
+        with open(OUPUT_FOLDER + f'/{MODEL}_{MODE}_output.json', 'w') as f:
             json.dump(json_outputs, f, ensure_ascii=False)
 
     return json_outputs, invalid_outputs
@@ -280,7 +322,19 @@ def process_invalid_cases(file):
 
 
 if __name__ == "__main__":
-    download_batch_output("batch_b8hu2jcktx1OJ85zXSvWc3CN", process_invalid=True)
+    # main()
+    # for l in LABELS:
+    #     main([l])
+    download_batch_output("", part_index=0, process_invalid=True)
     # check_status(LOG_FOLDER + "/batch_upload_record.json")
     # download_multiparts_batch_output(LOG_FOLDER + "/batch_upload_record.json")
     # process_invalid_cases(OUPUT_FOLDER + "/gpt-4o_train_full_invalid_output.json")
+    # tasks =  {
+    #     "dialogue act": "batch_6lzSvATKTCXQKLvpNQHhwVtQ",
+    #     "coordinative motive": "batch_dgXX1IdJWlVxwhQaYkhUgYEg",
+    #     "social motive": "batch_krAr1Orx25POq22nmVRNEdKT",
+    #     "informational motive": "batch_zNHfCOHx7rMxYjSCzukdzOZ4",
+    # }
+    # for k, v in tasks.items():
+    #     download_batch_output(v, process_invalid=True, labels=[k])
+
