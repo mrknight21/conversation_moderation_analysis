@@ -450,15 +450,15 @@ def finetune_longformer():
             tokenizer=tokenizer,
             compute_metrics=compute_metrics,
         )
-    # if mode == "debug" or mode == "eval":
-    #     print("Start evaluation......")
-    #     eval_report = trainer.evaluate()
-    #     if checkpoint:
-    #         with open(f"./results/{corpus}/{'_'.join(checkpoint.split('/')[-2:]).replace('-', '_')}_eval.json", mode="w") as f:
-    #             json.dump(eval_report, f)
-    #     else:
-    #         with open(f"./results/{corpus}/{model.replace('/', '_')}_{attributes[0]}_eval.json", mode="w") as f:
-    #             json.dump(eval_report, f)
+    if mode == "debug" or mode == "eval":
+        print("Start evaluation......")
+        eval_report = trainer.evaluate()
+        if checkpoint:
+            with open(f"./results/{corpus}/{'_'.join(checkpoint.split('/')[-2:]).replace('-', '_')}_eval.json", mode="w") as f:
+                json.dump(eval_report, f)
+        else:
+            with open(f"./results/{corpus}/{model.replace('/', '_')}_{attributes[0]}_eval.json", mode="w") as f:
+                json.dump(eval_report, f)
 
 
     if mode == "debug" or mode == "train":
