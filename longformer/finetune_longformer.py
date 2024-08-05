@@ -156,7 +156,9 @@ def load_json_data(path, split = "train", source='human', limit= -1):
                 sample["social_motive"] = 1 if "social motive" in i["answer"]["motives"] else 0
                 sample["coordinative_motive"] = 1 if "coordinative motive" in i["answer"]["motives"] else 0
                 sample["dialogue_act"] = int(dialogue_acts[i["answer"]["dialogue act"]])
-                sample["target_speaker"] = int(i["answer"]['target speaker(s)'][0])
+                target_speaker_code = int(i["answer"]['target speaker(s)'].split(" ")[0])
+                sample["target_speaker"] = target_speaker_code
+
             else:
                 if source == "gpt":
                     sample["informational_motive"] = 1 if "informational motive" in i["answer"]["gpt"]["motives"] else 0
@@ -227,7 +229,10 @@ def finetune_longformer():
     if mode == "train" or mode == "debug":
     # load data
         train_data = load_json_data(data_path + corpus + "/agg/train.json", limit=limit)
-        dev_data = load_json_data(data_path + corpus + "/agg/dev.json", split="dev", limit=limit)
+        if corpus == "insq":
+            dev_data = load_json_data(data_path + corpus + "/agg/dev.json", split="dev", limit=limit)
+        else:
+            dev_data = load_json_data(data_path + corpus + "/agg/test.json", split="dev", limit=limit)
     else:
         train_data = None
         dev_data = load_json_data(data_path + corpus + "/agg/test.json", split="test")
