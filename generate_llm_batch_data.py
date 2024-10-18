@@ -6,8 +6,8 @@ from attributes_prompts import construct_prompt_unit
 import json
 import re
 
-MODE = "train"
-CORPUS = "roundtable"
+MODE = "test"
+CORPUS = "insq"
 INPUT_FOLDER = f"./data/{CORPUS}/{MODE}_data"
 OUPUT_FOLDER = f"./data/{CORPUS}/output"
 LOG_FOLDER = "./log"
@@ -203,14 +203,15 @@ def download_batch_output(batch_id, part_index=-1, process_invalid=False, labels
     invalid_outputs = []
     if batch_info.status == "completed":
         content = client.files.content(batch_info.output_file_id)
+        label_tag = ""
         if part_index > -1:
-            filename = OUPUT_FOLDER + f"/isq_batch_{MODEL}_{MODE}_output_part{part_index}.jsonl"
+            filename = OUPUT_FOLDER + f"/batch_{MODEL}_{MODE}_output_part{part_index}.jsonl"
         else:
             if len(labels) == 1:
                 label_tag = "".join([w[0] for w in labels[0].split(" ")])
-                filename = OUPUT_FOLDER + f"/isq_batch_{MODEL}_{MODE}_{label_tag}_output.jsonl"
+                filename = OUPUT_FOLDER + f"/batch_{MODEL}_{MODE}_{label_tag}_output.jsonl"
             else:
-                filename = OUPUT_FOLDER + f"/isq_batch_{MODEL}_{MODE}_output.jsonl"
+                filename = OUPUT_FOLDER + f"/batch_{MODEL}_{MODE}_output.jsonl"
         with open(filename, 'w') as out:
             json_pattern = re.compile(r'\{(?:[^{}]|(?:\{[^{}]*\}))*\}')
             for l in content.iter_lines():
@@ -274,8 +275,12 @@ def download_batch_output(batch_id, part_index=-1, process_invalid=False, labels
                         json_outputs.append(output)
 
     if len(json_outputs) > 0:
-        with open(OUPUT_FOLDER + f'/{MODEL}_{MODE}_output.json', 'w') as f:
-            json.dump(json_outputs, f, ensure_ascii=False)
+        if label_tag:
+            with open(OUPUT_FOLDER + f'/{MODEL}_{MODE}_{label_tag}_output.json', 'w') as f:
+                json.dump(json_outputs, f, ensure_ascii=False)
+        else:
+            with open(OUPUT_FOLDER + f'/{MODEL}_{MODE}_output.json', 'w') as f:
+                json.dump(json_outputs, f, ensure_ascii=False)
 
     return json_outputs, invalid_outputs
 
@@ -322,18 +327,19 @@ def process_invalid_cases(file):
 
 
 if __name__ == "__main__":
-    # main()
+    main()
     # for l in LABELS:
     #     main([l])
-    download_batch_output("", part_index=0, process_invalid=True)
+    # download_batch_output("", part_index=0, process_invalid=True)
     # check_status(LOG_FOLDER + "/batch_upload_record.json")
     # download_multiparts_batch_output(LOG_FOLDER + "/batch_upload_record.json")
     # process_invalid_cases(OUPUT_FOLDER + "/gpt-4o_train_full_invalid_output.json")
     # tasks =  {
-    #     "dialogue act": "batch_6lzSvATKTCXQKLvpNQHhwVtQ",
-    #     "coordinative motive": "batch_dgXX1IdJWlVxwhQaYkhUgYEg",
-    #     "social motive": "batch_krAr1Orx25POq22nmVRNEdKT",
-    #     "informational motive": "batch_zNHfCOHx7rMxYjSCzukdzOZ4",
+    #     "dialogue act": "batch_At7tr5bhqIEJQearfOEzDcSE",
+    #     "coordinative motive": "batch_JMfQ0chVgL8KDwCO1xfxQfHu",
+    #     "social motive": "batch_NGIVjUJSjmaabnREmTmh9LVc",
+    #     "informational motive": "batch_GkBbtl6XcUtxCIOrhNaWCW8s",
+    #     "target speaker": "batch_78IEf1AgR6cUTcyKCjcp3Nbb"
     # }
     # for k, v in tasks.items():
     #     download_batch_output(v, process_invalid=True, labels=[k])

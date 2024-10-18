@@ -419,7 +419,7 @@ def update_with_tie_breaking(corpus):
 
 if __name__ == "__main__":
     # files = [OUPUT_FOLDER + "/gpt-4o_train_full_output.json", OUPUT_FOLDER + "/gpt-4o_train_repaired_output.json"]
-    load_train_data([OUPUT_FOLDER + "/gpt-4o_train.json"])
+    # load_train_data([OUPUT_FOLDER + "/gpt-4o_train.json"])
     # aggregate_human_model_outputs(OUPUT_FOLDER + "gpt-4o_test.json")
     # convert_gpt_human_data("./gpt_annotated_data")
-    # update_with_tie_breaking("insq")
+    update_with_tie_breaking("insq")

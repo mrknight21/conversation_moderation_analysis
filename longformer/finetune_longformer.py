@@ -1,13 +1,10 @@
 import os
-import pandas as pd
-import torch
 import numpy as np
 import argparse
 import json
 from collections import OrderedDict
-from tqdm import tqdm
-from datasets import load_dataset, load_metric, Dataset
-from utilities.metrics import compute_classification_accuracy, compute_classification_eval_report, create_multitask_classification_eval_metric, create_rogue_matric, compute_led_classification_eval_report
+from datasets import Dataset
+from utils.metrics import compute_classification_eval_report, create_multitask_classification_eval_metric, create_rogue_matric
 from transformers import (
     Seq2SeqTrainer,
     Seq2SeqTrainingArguments,
@@ -16,7 +13,6 @@ from transformers import (
     AutoTokenizer,
     AutoModelForSeq2SeqLM,
     LongformerForSequenceClassification,
-    LEDForSequenceClassification,
     LEDConfig,
     LongformerConfig,
 )
@@ -107,7 +103,7 @@ def parse_args():
     parser.add_argument(
         '--checkpoint',
         type=str,
-        help='checkpoint string for the mdoel'
+        help='checkpoint string for the model'
     )
 
     args = parser.parse_args()

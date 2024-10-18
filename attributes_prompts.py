@@ -20,19 +20,19 @@ attributes = {
 
     "informational motive": {
         "type": "binary",
-        "definition": "This motive emphasizes the sharing and exchange of relevant knowledge and information within a conversation. It focuses on both providing and obtaining details that are crucial to the topic or objective of the discussion. This includes expressing opinions, asking question, probing infomation, providing rationales, and sharing specific information that constructively contributes to the topic and goal of the dialogue. ",
+        "definition": "Provide or acquire relevant information to constructively advance the topic or goal of the conversation. ",
         "examples": '“Why do you think minimum wage is unfair?” (Relevant information seeking.) “The legal system has many loopholes.” (Expressing opinion.) “Yea! I agree with your point!” (Agreement relevant to the topic.)  “The law was established in 1998.” (Providing topic relevant information.)'
     },
 
     "social motive": {
         "type": "binary",
-        "definition": "This motive seeks to enrich the emotional atmosphere and strengthen social connections among discussion participants. It ensures that participants remain engaged and motivated, and supports the development of their relationships. The motive encompasses responses that influence, explore, or articulate the feelings, emotions, and interpersonal dynamics within the group.",
+        "definition": "Enhance the social atmosphere and connections among participants by addressing feelings, emotions, and interpersonal dynamics within the group.",
         "examples": '“It is sad to hear the news of the tragedy.” (Expressing emotion and feeling.) “Thank you! Mr. Wang.” (Appreciating.) “Hello! Let’s welcome Dr. Frankton.” (Greeting.) “I can understand your struggle being a single mum.” (Empathy) “How do you feel? when your work was totally denied.” (Exploring other’s feeling.) “Please feel free to say your mind because I can’t bite you online, hehe!” (Humour.) “The definition is short and simple! I love it!” (Encouragement.) “Maybe Amy’s intention is different to what you thought, you guys actually believe the same thing.” (Social Reframing.)'
     },
 
     "coordinative motive": {
         "type": "binary",
-        "definition": "This motive is dedicated to maintaining a smooth flow of dialogue by adhering to established rules, plans, and the broader context of the conversation. It involves steering the interaction to ensure order and efficiency, while also managing elements like time and environment that impact the discussion.",
+        "definition": "Ensure adherence to rules, plans, and broader contextual constraints, such as time and environment.",
         "examples": "“Let’s move on to the next question due to time running out.” (Command) “We going to start with the blue team and then the red team” (Planning) “Do you want to go first?” (Asking for process preference.) “Please move to the left side and turn on your mic!” (Managing environment) "
     },
 
@@ -42,27 +42,27 @@ attributes = {
         "instruction":"Your role is an annotator, annotating the moderation behavior and speech of a debate TV show. The debate topic is 'Gun Reduces Crime', given the definition and the examples, the context of prior dialogue, please label which dialogue act category does the target sentence belong to?",
         "options": {
             "Probing":{
-                "definition":"Response that prompts speaker for contributing information (this excludes rhetorical question).",
+                "definition":"Prompt speaker for responses",
                 "examples": '“What is your view on that Dr. Foster?” (Questioning.) “Where are you from?” (Social questioning.) “Peter!” (Name calling for response.) “If the majority of people are voting against it, would you still insist?” (Elaborated questioning.) “Do you agree with this statement?” (Binary question.)'
             },
             "Confronting":{
-                "definition":"Response that prompts one speaker to response or engage with another speaker(s)'s statements, questions or opinions.",
+                "definition":"Prompt one speaker to response or engage with another speaker's statement, question or opinion.",
                 "examples": '“So David pointed out the critical weakness of the system, what is your thought on his critiques, Dr. Foster?”, "Judge Anderson, what is your response to this hypothetical scenario posed by Ms. Lee regarding privacy laws?", "Senator Harris, you have proposed reducing taxes instead. How do you respond to Mr. Walkers suggestion to increase school funding?", "So, Dr. Green, Professor Brown just criticized the emissions policy. What is your response to his critique?"'
             },
             "Supplement": {
-                "definition":"Responses categorized as supplements provide additional information by explaining, describing, clarifying, reminding,expressing, proposing, making hypotheses, sharing opinions, or introducing external knowledge. These responses enrich the conversation by bringing in new details or information without directly and immediating influencing target speaker's behavior.",
+                "definition":"Enrich the conversation by supplementing  details or information without immediately changing the target speaker's behavior.",
                 "examples": '“And that concludes round one of this Intelligence Squared U.S. debate where our motion is Break up the Big Banks.” (Addressing progess) “The blue team will go first, then the red team can speak” (explaining program rule) “Supposed we live in a world where such behaviour is accepted.” (Hypothesis) “I suggest the best solution is giving everyone equal chances.” (Proposal) “The government announced tax raise from March.” (Providing external information) “I agree with that you said.” (Agreement) “GM means genetic modified.” (Providing external knowledge) “I think people should be given the right to say no!” (Opinion) "The guy with the blue shirt." (Describing appearance) "The power is off." (Describing situation). “In this section, debaters will address one another and also take questions from the audience.” (Explaining upcoming segment) "Let me move this along a little bit further to a slightly different topic, although we have circled around it." (Explaining self intention) "I want to remind you that we are in the question and answer section." (Remind current phase of the discussion)'
             },
             "Interpretation": {
-                "definition":"Interpretation responses help to clarify, reframe, summarize, paraphrase, or link back to previous statements within the dialogue. These responses are used to elucidate the meaning of earlier exchanges, often to ensure understanding, provide clarity, or connect different parts of the conversation.",
+                "definition":"Clarify, reframe, summarize, paraphrase, or make connection to earlier conversation content.",
                 "examples": '“So basically, what Amy said is that they didn’t use the budget efficiently”. (Summarisation) “You said ‘I believe GM is harmless,’.” (Quote) “In another word, you don’t like their plan.”. (Paraphrase) “My understanding is you don’t support this due to moral reason.” (Interpretation) “She does not mean to hurt you but just tell the truth.” (Clarify) “So far, we have Dr. Johnson suggesting…., and Dr. Brown against it because……”(Summarisation) “Amy saying that to justify the reduction of the wage, but not aiming to induce suffering.” (Reframing) '
             },
             "Instruction": {
-                "definition":"Instructions are communications that carry the explicit intent to command, influence, halt, or shape the immediate actions of the recipients. These responses are intended to prompt a specific and immediate change in behavior, adherence to rules, or modification of the dialogue process.",
+                "definition":"Explicitly command, influence, halt, or shape the immediate behavior of the recipients.",
                 "examples": '“Please get back to the topic.” (Commanding) “Please stop here, we are running out of time.” (Reminding of the rule) “The red will start now.” (Instruction) “Please mind your choice of words and manner.” (social policing) “Do not intentionally create misconception.” (argumentative policing) “Now is not your term, stop here.” (coordinative policing) “What you need to do is raise your hand, and ushers will come to you.” (Guiding participation) “Turn on your microphone before speaking.” (Technical instruction)'
             },
             "All Utility": {
-                "definition":"All other unspecified acts. Occasionally, this group of behaviours play an important role to show engagement (e.g. back channelling) and getting attention (e.g. floor grabbing).",
+                "definition":"All other unspecified acts.",
                 "examples": '“Thanks, you.” (Greeting) “Sorry.” (Apology) “Okay.” (Back channelling) “Um hm.” (Back channelling) “But, but, but……” (Floor grabbing) '
             }
         }
