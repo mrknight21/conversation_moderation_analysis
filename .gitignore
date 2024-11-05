@@ -185,8 +185,10 @@ fabric.properties
 
 # idea folder, uncomment if you don't need it
 # .idea
-/data/insq/agg/
 
-/data/*
+
+/data/slmod
+/data/insq/preprocessed/*
+/data/roundtable/preprocessed/*
 
 *.slurm
