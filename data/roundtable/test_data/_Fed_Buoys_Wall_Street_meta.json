@@ -1,0 +1,15 @@
+{
+  "default": {
+    "topic": "_Fed_Buoys_Wall_Street",
+    "speakers": [
+      "0 (Unknown)",
+      "1 (Self)",
+      "2 (Everyone)",
+      "3 (Audience)",
+      "4 (Ms. ERIN AUBRY KAPLAN (Editor, L.A. Times))",
+      "5 (Mr. JOHN YEARWOOD (Editor, Miami Heralds World))",
+      "6 (Ms. KAPLIN)",
+      "7 (All speakers)"
+    ]
+  }
+}

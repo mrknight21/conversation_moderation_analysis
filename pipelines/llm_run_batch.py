@@ -36,8 +36,9 @@ import pandas as pd
 from openai import OpenAI
 
 # External project‑specific helpers (remain unchanged)
-from llm_run_direct import get_episode_meta, gpt_batch
-from pipelines.prompts.attributes_prompts import construct_prompt_unit
+from llm_run_direct import gpt_batch
+from utils.dataloaders import get_episode_meta
+from static.attributes_prompts import construct_prompt_unit
 
 ###############################################################################
 # Configuration helpers

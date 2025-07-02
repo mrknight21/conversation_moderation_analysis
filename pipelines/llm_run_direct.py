@@ -38,8 +38,8 @@ from sklearn.metrics import classification_report
 from tqdm import tqdm
 
 # external project helpers -----------------------------------------------------
-from llm_run_direct import get_episode_meta  # noqa: E402
-from pipelines.prompts.attributes_prompts import construct_prompt_unit  # noqa: E402
+from utils.dataloaders import get_episode_meta  # noqa: E402
+from static.attributes_prompts import construct_prompt_unit  # noqa: E402
 
 load_dotenv()
 

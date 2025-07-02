@@ -2,6 +2,16 @@
 import json
 
 
+def get_episode_meta(episode):
+    meta_json_path = episode.replace(".xlsx", "_meta.json")
+    meta = None
+    with open(meta_json_path) as f:
+        metas = json.load(f)
+        if len(metas.values()) > 0:
+            meta = list(metas.values())[0]
+        meta["topic"] = " ".join(meta["topic"].split("_")[2:])
+    return meta
+
 
 def write_txt(lines:list, filepath:str):
     with open(filepath, 'w') as f:
