@@ -18,8 +18,8 @@ from transformers import (
 )
 import wandb
 
-from attributes_prompts import dialogue_acts
-from meta_info import attributes_info
+from pipelines.static.attributes_prompts import dialogue_acts
+from pipelines.static.meta_info import attributes_info
 from longformer.multitasks_longformer import LongformerForSequenceMultiTasksClassification
 
 

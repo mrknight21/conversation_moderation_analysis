@@ -85,8 +85,12 @@ def construct_prompt_unit(instance, scenario, labels=["informational motive", "s
     target = instance["target"]
     if scenario == 'insq':
         instruction = f'Your role is an annotator, annotating the moderation behavior and speech of a debate TV show. The debate topic is "{topic}", given the definition and the examples, the context of prior and posterior dialogue, '
-    else:
+    elif scenario == 'roundtable':
         instruction = f'Your role is an annotator, annotating the moderation behavior and speech of a radio panel discussion session. The topic is "{topic}", given the definition and the examples, the context of prior and posterior dialogue, '
+    elif scenario == "fora":
+        instruction = f'Your role is an annotator, annotating the moderation behavior and speech of the facilitator in a community group discussion. Given the definition and the examples, the context of prior and posterior dialogue, '
+    else:
+        instruction = f'Your role is an annotator, annotating the moderation behavior of a second language speakers" discussion session. The topic is "{topic}", given the definition and the examples, the context of prior and posterior dialogue, '
 
     if len(labels) > 1:
         instruction += 'please label which motives the target response carries? And which dialogue act the target sentence belong to? And who is the moderator talking to?'
