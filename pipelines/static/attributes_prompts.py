@@ -1,11 +1,3 @@
-annotators ={
-    "anh": 0,
-    "anudeex": 1,
-    "cam": 2,
-    "claudia": 3,
-    "jemima": 4,
-    "author": 5
-}
 
 dialogue_acts ={"Probing": 0, "Confronting": 1, "Instruction": 2, "Interpretation": 3, "Supplement": 4,
               "All Utility": 5}
