@@ -4,6 +4,7 @@ This repository contains information about the Whow corpus with two subsets from
 
 The corpus is described in Arxiv paper "WHoW: A Cross-domain Approach for Analysing Conversation
 Moderation" Ming-Bin Chen and Jey Han Lau and Lea Frermann from the University of Melbourne.
+https://aclanthology.org/2025.naacl-long.105/<
 
 <img src="./material/demo.png">
 Example of a moderated conversation and annotation using the WHoW framework. Blue, green, and red colors represent the supporting team, moderator, and opposing team in one of the Debate subset conversation, respectively. The peach-colored boxes contain the annotations for the corresponding moderator sentences.
